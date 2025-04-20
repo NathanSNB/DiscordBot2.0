@@ -155,3 +155,10 @@ Besoin d’aide ou d’un retour ?
 Projet sous licence **MIT**.
 
 Développé avec ❤️ par **Nathan**
+
+![Python](https://img.shields.io/badge/python-3.8-blue)
+![License](https://img.shields.io/badge/license-GPLv3-blue)
+![Dependencies](https://img.shields.io/badge/dependencies-up%20to%20date-brightgreen)
+![Project Status](https://img.shields.io/badge/status-en%20développement-yellow)
+![Langue](https://img.shields.io/badge/langue-français-blue)
+
