@@ -167,7 +167,3 @@ class Commandes_musicales(commands.Cog):
 async def setup(bot):
     """Ajoute la cog Commandes_musicales au bot."""
     await bot.add_cog(Commandes_musicales(bot))
-
-
-
-

@@ -8,6 +8,13 @@ import os
 from io import BytesIO
 from collections import defaultdict
 import logging
+from dotenv import load_dotenv
+
+load_dotenv()  # Charge les variables d’environnement du fichier .env
+
+# Récupère la chaîne et transforme-la en liste
+filtered_words_str = os.getenv("FILTERED_GAME_WORDS", "")
+filtered_game_words = filtered_words_str.split(",") if filtered_words_str else []
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -15,7 +22,8 @@ logging.basicConfig(level=logging.INFO)
 class StatsCommands(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        logger.info("📊 Module Stats chargé")
+        # Assigner filtered_game_words à l'instance
+        self.filtered_game_words = filtered_game_words
         self.load_stats()
         self.stats_cache = {}
         self.last_update = 0
@@ -63,6 +71,20 @@ class StatsCommands(commands.Cog):
                 return True
         self.stats_cache[user_id] = now
         return False
+        
+    def should_filter_game(self, game_name):
+        """Vérifie si le nom du jeu contient un des mots à filtrer"""
+        if not game_name:
+            return False
+        
+        # Convertir le nom du jeu en minuscules pour une comparaison insensible à la casse
+        game_name_lower = game_name.lower()
+        
+        # Vérifier si l'un des mots filtrés est présent dans le nom du jeu
+        for word in self.filtered_game_words:
+            if word.lower() in game_name_lower:
+                return True
+        return False
 
     @commands.Cog.listener()
     async def on_command_error(self, ctx, error):
@@ -78,6 +100,10 @@ class StatsCommands(commands.Cog):
     async def on_presence_update(self, before, after):
         """Traque les activités de jeu des membres"""
         try:
+            # Ignorer les bots
+            if after.bot:
+                return
+                
             # Vérifie les changements d'activité
             before_game = next((activity for activity in before.activities if activity.type == discord.ActivityType.playing), None)
             after_game = next((activity for activity in after.activities if activity.type == discord.ActivityType.playing), None)
@@ -93,18 +119,22 @@ class StatsCommands(commands.Cog):
             # Si un jeu se termine
             if before_game and not after_game:
                 game_name = before_game.name
-                if game_name in self.stats_data['games']:
-                    self.stats_data['games'][game_name] = self.stats_data['games'].get(game_name, 0) + 1
-                else:
-                    self.stats_data['games'][game_name] = 1
-                logger.info(f"🎮 {after.name} a terminé de jouer à {game_name}")
+                # Vérifier si le jeu doit être filtré
+                if not self.should_filter_game(game_name):
+                    if game_name in self.stats_data['games']:
+                        self.stats_data['games'][game_name] = self.stats_data['games'].get(game_name, 0) + 1
+                    else:
+                        self.stats_data['games'][game_name] = 1
+                    logger.info(f"🎮 {after.name} a terminé de jouer à {game_name}")
 
             # Si un nouveau jeu commence
             elif after_game and not before_game:
                 game_name = after_game.name
-                if game_name not in self.stats_data['games']:
-                    self.stats_data['games'][game_name] = 0
-                logger.info(f"🎮 {after.name} a commencé à jouer à {game_name}")
+                # Vérifier si le jeu doit être filtré
+                if not self.should_filter_game(game_name):
+                    if game_name not in self.stats_data['games']:
+                        self.stats_data['games'][game_name] = 0
+                    logger.info(f"🎮 {after.name} a commencé à jouer à {game_name}")
 
             # Sauvegarde des données
             with open('data/stats.json', 'w', encoding='utf-8') as f:
@@ -198,6 +228,12 @@ class StatsCommands(commands.Cog):
     async def show_stats(self, ctx, member: discord.Member = None):
         """Affiche les statistiques d'un membre"""
         target = member or ctx.author
+        
+        # Ignorer les bots
+        if target.bot:
+            await ctx.send("❌ Les statistiques des bots ne sont pas suivies.")
+            return
+            
         logger.info(f"📊 Stats demandées pour {target}")
         try:
             user_id = str(target.id)
@@ -232,13 +268,18 @@ class StatsCommands(commands.Cog):
         guild = ctx.guild
         
         # Statistiques de base
-        total_messages = sum(self.stats_data.get('messages', {}).values())
-        total_voice = sum(self.stats_data.get('voice_time', {}).values())
+        # Compter uniquement les messages des non-bots
+        messages = {uid: count for uid, count in self.stats_data.get('messages', {}).items() 
+                   if not self.bot.get_user(int(uid)) or not self.bot.get_user(int(uid)).bot}
         
-        # Meilleurs utilisateurs
-        messages = self.stats_data.get('messages', {})
-        voice_time = self.stats_data.get('voice_time', {})
+        # Compter uniquement le temps vocal des non-bots
+        voice_time = {uid: time for uid, time in self.stats_data.get('voice_time', {}).items()
+                     if not self.bot.get_user(int(uid)) or not self.bot.get_user(int(uid)).bot}
         
+        total_messages = sum(messages.values())
+        total_voice = sum(voice_time.values())
+        
+        # Meilleurs utilisateurs parmi les non-bots
         top_chatter_id = max(messages, key=messages.get) if messages else None
         top_voice_id = max(voice_time, key=voice_time.get) if voice_time else None
         
@@ -249,7 +290,9 @@ class StatsCommands(commands.Cog):
         # Ajout des champs
         embed.add_field(name="Total Messages", value=str(total_messages), inline=True)
         embed.add_field(name="Total Vocal", value=self.format_time(total_voice), inline=True)
-        embed.add_field(name="Membres", value=str(guild.member_count), inline=True)
+        embed.add_field(name="Membres (non-bots)", 
+                       value=str(sum(1 for m in guild.members if not m.bot)), 
+                       inline=True)
         
         if top_chatter_id:
             try:
@@ -293,10 +336,39 @@ class StatsCommands(commands.Cog):
     )
     async def top_members(self, ctx, category="messages", limit: int = 5):
         """Affiche le classement des membres"""
+        # Filtrer les données pour exclure les bots
+        filtered_messages = {}
+        filtered_vocal = {}
+        filtered_streaming = {}
+        
+        for user_id, value in self.stats_data.get('messages', {}).items():
+            try:
+                member = await ctx.guild.fetch_member(int(user_id))
+                if member and not member.bot:
+                    filtered_messages[user_id] = value
+            except:
+                continue
+                
+        for user_id, value in self.stats_data.get('voice_time', {}).items():
+            try:
+                member = await ctx.guild.fetch_member(int(user_id))
+                if member and not member.bot:
+                    filtered_vocal[user_id] = value
+            except:
+                continue
+                
+        for user_id, value in self.stats_data.get('streaming', {}).items():
+            try:
+                member = await ctx.guild.fetch_member(int(user_id))
+                if member and not member.bot:
+                    filtered_streaming[user_id] = value
+            except:
+                continue
+        
         categories = {
-            "messages": self.stats_data.get('messages', {}),
-            "vocal": self.stats_data.get('voice_time', {}),
-            "streaming": self.stats_data.get('streaming', {})
+            "messages": filtered_messages,
+            "vocal": filtered_vocal,
+            "streaming": filtered_streaming
         }
 
         if category not in categories:
@@ -314,9 +386,10 @@ class StatsCommands(commands.Cog):
         for i, (user_id, value) in enumerate(sorted_data, 1):
             try:
                 member = await ctx.guild.fetch_member(int(user_id))
-                name = member.display_name
-                value_str = self.format_time(value) if category != "messages" else str(value)
-                embed.add_field(name=f"#{i} {name}", value=value_str, inline=False)
+                if member and not member.bot:
+                    name = member.display_name
+                    value_str = self.format_time(value) if category != "messages" else str(value)
+                    embed.add_field(name=f"#{i} {name}", value=value_str, inline=False)
             except:
                 continue
 
@@ -444,19 +517,18 @@ class StatsCommands(commands.Cog):
                 await ctx.send("❌ Aucune donnée de jeu disponible")
                 return
 
-            # Vérification et nettoyage des données
-            cleaned_games = {
-                str(game): float(minutes) 
-                for game, minutes in games_data.items() 
-                if minutes and str(minutes).replace('.','',1).isdigit()
-            }
+            # Filtrer les jeux contenant les mots à exclure
+            filtered_games = {}
+            for game_name, minutes in games_data.items():
+                if not self.should_filter_game(game_name) and minutes and str(minutes).replace('.','',1).isdigit():
+                    filtered_games[str(game_name)] = float(minutes)
 
-            sorted_games = self.get_sorted_data(cleaned_games, limit)
-            
-            if not sorted_games:
-                await ctx.send("❌ Aucune donnée valide trouvée")
+            if not filtered_games:
+                await ctx.send("❌ Aucune donnée valide trouvée après filtrage")
                 return
 
+            sorted_games = self.get_sorted_data(filtered_games, limit)
+            
             embed = self.create_embed("🎮 Top jeux joués")
             embed.set_footer(text="Temps total de jeu")
 

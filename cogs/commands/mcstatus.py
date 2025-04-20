@@ -1,23 +1,18 @@
 import discord
 from discord.ext import commands
-from mcstatus import JavaServer
-import socket
-import asyncio
+import logging
 import os
 from dotenv import load_dotenv
-import logging
 
 # Chargement des variables d'environnement
 load_dotenv()
 logger = logging.getLogger('bot')
 
-class MCStatus(commands.Cog):
+class MCStatusCommands(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.SERVER_IP = os.getenv('MINECRAFT_SERVER_IP', 'localhost')
-        self.PORT = int(os.getenv('MINECRAFT_SERVER_PORT', 25565))
-        logger.info(f"🎮 Module MCStatus chargé (Serveur: {self.SERVER_IP}:{self.PORT})")
-
+        self.STATUS_CHANNEL_ID = int(os.getenv('STATUS_CHANNEL_ID', 0))
+    
     @commands.command(
         name="mcstat",
         help="Affiche le statut du serveur Minecraft",
@@ -25,61 +20,52 @@ class MCStatus(commands.Cog):
         usage="!mcstat"
     )
     async def mcstat(self, ctx):
+        """Commande pour afficher le statut du serveur manuellement"""
+        # Récupérer le cog MCStatusTracker
+        tracker_cog = self.bot.get_cog('MCStatusTracker')
+        if not tracker_cog:
+            await ctx.send("❌ Le système de suivi n'est pas disponible.")
+            return
+        
         loading_msg = await ctx.send("🔄 Vérification du statut du serveur...")
-
-        try:
-            # Test de résolution DNS
-            try:
-                ip = socket.gethostbyname(self.SERVER_IP)
-                logger.info(f"✅ DNS résolu : {self.SERVER_IP} -> {ip}")
-            except socket.gaierror:
-                raise ConnectionError(f"❌ Impossible de résoudre l'adresse {self.SERVER_IP}")
-
-            # Test de connexion au serveur
-            server = JavaServer(ip, self.PORT)
-            status = server.status()
-
-            # Création de l'embed avec les infos
-            embed = discord.Embed(
-                title="🟢 Serveur Minecraft en ligne",
-                color=discord.Color.green()
-            )
-            embed.add_field(
-                name="🌐 Adresse", 
-                value=f"`{self.SERVER_IP}`", 
-                inline=True
-            )
-            embed.add_field(
-                name="📊 Joueurs", 
-                value=f"{status.players.online}/{status.players.max}", 
-                inline=True
-            )
-            embed.add_field(
-                name="📶 Latence", 
-                value=f"{round(status.latency, 2)}ms", 
-                inline=True
-            )
-
-            # Ajout des joueurs connectés si présents
-            if status.players.online > 0 and hasattr(status.players, 'sample'):
-                players = "\n".join(f"• {p.name}" for p in status.players.sample)
-                embed.add_field(
-                    name="👥 Joueurs en ligne",
-                    value=players,
-                    inline=False
-                )
-
-            await loading_msg.edit(content=None, embed=embed)
-            logger.info(f"✅ Statut vérifié pour {self.SERVER_IP}")
-
-        except Exception as e:
-            logger.error(f"❌ Erreur MCStatus: {str(e)}")
-            embed = discord.Embed(
-                title="🔴 Serveur Minecraft hors ligne",
-                description=f"Erreur: {str(e)}",
-                color=discord.Color.red()
-            )
-            await loading_msg.edit(content=None, embed=embed)
-
+        is_online, embed, _, _ = await tracker_cog.get_status_embed()
+        await loading_msg.edit(content=None, embed=embed)
+        logger.info(f"✅ Commande mcstat exécutée par {ctx.author}")
+    
+    @commands.command(
+        name="mcrefresh",
+        help="Actualise le message de statut du serveur",
+        description="Force l'actualisation du message de statut",
+        usage="!mcrefresh"
+    )
+    @commands.has_permissions(administrator=True)
+    async def mcrefresh(self, ctx):
+        """Force l'actualisation du message de statut"""
+        # Récupérer le cog MCStatusTracker
+        tracker_cog = self.bot.get_cog('MCStatusTracker')
+        if not tracker_cog:
+            await ctx.send("❌ Le système de suivi n'est pas disponible.")
+            return
+        
+        await ctx.send("🔄 Actualisation du statut du serveur...")
+        is_online, embed, player_count, current_player_list = await tracker_cog.get_status_embed()
+        
+        channel = self.bot.get_channel(self.STATUS_CHANNEL_ID)
+        if channel:
+            # Nettoyer d'abord les anciens messages du bot dans le canal
+            await tracker_cog.clean_status_messages(channel)
+            
+            # Créer un nouveau message de statut
+            tracker_cog.status_message = await channel.send(embed=embed)
+            
+            # Mettre à jour les valeurs précédentes
+            tracker_cog.previous_server_status = is_online
+            tracker_cog.previous_player_count = player_count
+            tracker_cog.previous_player_list = current_player_list
+            
+            await ctx.send("✅ Message de statut actualisé!")
+        else:
+            await ctx.send(f"❌ Canal de statut non trouvé (ID: {self.STATUS_CHANNEL_ID})")
+    
 async def setup(bot):
-    await bot.add_cog(MCStatus(bot))
+    await bot.add_cog(MCStatusCommands(bot))

@@ -24,7 +24,6 @@ class BedtimeReminder(commands.Cog):
         self.bot = bot
         self.timezone = pytz.timezone('Europe/Paris')
         self.current_time = datetime.now(self.timezone)
-        logger.info("⏰ Module Reminder chargé")
         self.reminder_time = "22:00"  # Heure par défaut
         self.load_config()
         self.reminder_check.start()
@@ -42,7 +41,6 @@ class BedtimeReminder(commands.Cog):
                     "reminder_time": self.reminder_time
                 }
                 self.save_config()
-            logger.info("📝 Configuration des rappels chargée")
         except Exception as e:
             logger.error(f"❌ Erreur config rappels: {str(e)}")
             self.config = {"users": [], "messages": [], "reminder_time": self.reminder_time}
@@ -64,7 +62,7 @@ class BedtimeReminder(commands.Cog):
         """Vérifie et envoie les rappels"""
         try:
             # Utilisation du fuseau horaire France/Paris
-            now = datetime.datetime.now(ZoneInfo("Europe/Paris"))
+            now = datetime.now(ZoneInfo("Europe/Paris"))
             current_time = f"{now.hour:02d}:{now.minute:02d}"
             logger.debug(f"🔍 Vérification rappels: {now.strftime('%H:%M')}")
 
@@ -91,7 +89,7 @@ class BedtimeReminder(commands.Cog):
 
     async def check_time(self):
         """Vérifie l'heure actuelle"""
-        now = datetime.now(self.timezone)  # Utilisation correcte
+        now = datetime.now(self.timezone)
         target_time = datetime.strptime(self.reminder_time, "%H:%M").time()
         current_time = now.time()
         return current_time.hour == target_time.hour and current_time.minute == target_time.minute
@@ -204,10 +202,3 @@ class BedtimeReminder(commands.Cog):
 
 async def setup(bot):
     await bot.add_cog(BedtimeReminder(bot))
-
-
-
-
-
-
-

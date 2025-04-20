@@ -40,14 +40,19 @@ class HelpMenu(discord.ui.View):
 class HelpCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self._original_help_command = bot.help_command
+        bot.help_command = None  # Désactive la commande help par défaut
 
-    @commands.command(name='help', help="Affiche l'aide du bot.")
-    async def help_command(self, ctx):
+    @commands.command()
+    async def help(self, ctx):
+        """Affiche la liste des commandes disponibles"""
         # Récupérer les cogs
         embeds = []
         for cog_name, cog in self.bot.cogs.items():
-            if not cog.get_commands():
+            # Ignore le cog HelpCog lui-même
+            if cog_name == "HelpCog" or not cog.get_commands():
                 continue
+                
             embed = discord.Embed(title=f"📘 Aide - {cog_name}", color=discord.Color.blurple())
             for command in cog.get_commands():
                 embed.add_field(
@@ -55,14 +60,21 @@ class HelpCog(commands.Cog):
                     value=f"**Usage :** `{ctx.prefix}{command.name} {command.usage or ''}`\n{command.help or 'Pas de description.'}",
                     inline=False
                 )
-            embeds.append(embed)
+            
+            # N'ajoute l'embed que s'il contient au moins une commande
+            if len(embed.fields) > 0:
+                embeds.append(embed)
 
         if not embeds:
             return await ctx.send("Aucune commande trouvée.")
 
         view = HelpMenu(embeds, ctx.author)
         await ctx.send(embed=embeds[0], view=view)
+    
+    def cog_unload(self):
+        # Restore original help command when cog is unloaded
+        self.bot.help_command = self._original_help_command
 
 async def setup(bot):
     await bot.add_cog(HelpCog(bot))
-print("✅ Help cog loaded")
+    print("✅ Help cog loaded")
