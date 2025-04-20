@@ -40,3 +40,4 @@ class MathysieBot(commands.Bot):
 if __name__ == "__main__":
     bot = MathysieBot()
     bot.run(Config.TOKEN)
+    #test
