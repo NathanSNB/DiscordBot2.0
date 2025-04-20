@@ -495,10 +495,7 @@ class StatsCommands(commands.Cog):
             f"{chart_type}_activity"
         )
 
-        # Envoi du graphique
-        embed = self.create_embed("📊 Graphique d'activité", f"Activité {chart_type}")
         await ctx.send(
-            embed=embed,
             file=discord.File(buffer, filename=f'activity_{chart_type}.png')
         )
 
