@@ -10,7 +10,7 @@ from collections import defaultdict
 import logging
 from dotenv import load_dotenv
 
-load_dotenv()  # Charge les variables d’environnement du fichier .env
+load_dotenv()  # Charge les variables d'environnement du fichier .env
 
 # Récupère la chaîne et transforme-la en liste
 filtered_words_str = os.getenv("FILTERED_GAME_WORDS", "")
@@ -121,10 +121,15 @@ class StatsCommands(commands.Cog):
                 game_name = before_game.name
                 # Vérifier si le jeu doit être filtré
                 if not self.should_filter_game(game_name):
-                    if game_name in self.stats_data['games']:
-                        self.stats_data['games'][game_name] = self.stats_data['games'].get(game_name, 0) + 1
-                    else:
+                    # Correction ici: s'assurer que la valeur est un entier avant d'incrémenter
+                    current_count = self.stats_data['games'].get(game_name, 0)
+                    # Vérifier si current_count est un dictionnaire
+                    if isinstance(current_count, dict):
+                        # Si c'est un dictionnaire, initialiser avec 1
                         self.stats_data['games'][game_name] = 1
+                    else:
+                        # Sinon, incrémenter normalement
+                        self.stats_data['games'][game_name] = current_count + 1
                     logger.info(f"🎮 {after.name} a terminé de jouer à {game_name}")
 
             # Si un nouveau jeu commence
@@ -132,7 +137,11 @@ class StatsCommands(commands.Cog):
                 game_name = after_game.name
                 # Vérifier si le jeu doit être filtré
                 if not self.should_filter_game(game_name):
+                    # S'assurer qu'il existe une entrée pour ce jeu
                     if game_name not in self.stats_data['games']:
+                        self.stats_data['games'][game_name] = 0
+                    # Vérifier si la valeur est un dictionnaire
+                    elif isinstance(self.stats_data['games'][game_name], dict):
                         self.stats_data['games'][game_name] = 0
                     logger.info(f"🎮 {after.name} a commencé à jouer à {game_name}")
 

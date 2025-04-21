@@ -263,19 +263,19 @@ class YouTubeDownloader(commands.Cog):
         return bar
 
     async def update_loading_message(self, message, step, total_steps, status_text, emoji_index=0):
-        """Met à jour le message de chargement avec une animation et une barre de progression"""
+        """Met à jour le message de chargement avec une barre de progression"""
         progress = step / total_steps
-        loading_emoji = EMOJIS['loading'][emoji_index % len(EMOJIS['loading'])]
         progress_bar = self.create_progress_bar(progress)
         percentage = int(progress * 100)
         
         embed = self.create_embed(
-            f"{progress_bar} {percentage}%\n\n**Statut:** {status_text}",
+            f"⏳ {percentage}%",  # Utiliser un emoji fixe
+            f"{progress_bar}\n\n**Statut:** {status_text}",
             color=COLORS['info']
         )
         
         await message.edit(embed=embed)
-        return (emoji_index + 1) % len(EMOJIS['loading'])
+        return 0  # Retourne une valeur fixe puisque nous n'utilisons plus l'index d'emoji
 
     def truncate_url(self, url, max_length=500):
         """Tronque une URL si elle est trop longue"""
@@ -313,7 +313,7 @@ class YouTubeDownloader(commands.Cog):
 
         # Message de chargement initial
         loading_embed = self.create_embed(
-            f"{EMOJIS['loading'][0]} Initialisation", 
+            "⏳ Initialisation", 
             f"{self.create_progress_bar(0.1)} 10%\n\nPréparation de l'analyse...",
             color=COLORS['info']
         )
@@ -378,6 +378,198 @@ class YouTubeDownloader(commands.Cog):
                 await loading_msg.edit(embed=error_embed)
 
     @commands.command(
+        name="ytsearch",
+        help="Recherche des vidéos sur YouTube",
+        description="Permet de rechercher des vidéos pertinentes sur YouTube en fonction des mots-clés fournis",
+        usage="!ytsearch <mots clefs> [count]"
+    )
+    async def youtube_search(self, ctx, *args):
+        """Recherche des vidéos sur YouTube et affiche les résultats"""
+        if not args:
+            embed = self.create_embed(
+                f"{EMOJIS['error']} Paramètre manquant", 
+                "Veuillez fournir des mots-clés à rechercher.\n\n**Usage :** `!ytsearch <mots clefs> [nombre de résultats]`",
+                color=COLORS['error']
+            )
+            await ctx.reply(embed=embed)
+            return
+            
+        # Vérifier si le dernier argument est un nombre (nombre de résultats)
+        count = 25  # Augmenté pour avoir plusieurs pages
+        search_terms = list(args)
+        
+        if search_terms and search_terms[-1].isdigit():
+            count = int(search_terms.pop())  # Extraire le dernier élément comme count
+            if count > 50:  # Limite maximale augmentée
+                count = 50
+        
+        # Assembler les termes de recherche
+        query = " ".join(search_terms)
+        
+        if not query:
+            embed = self.create_embed(
+                f"{EMOJIS['error']} Paramètre manquant", 
+                "Veuillez fournir des mots-clés à rechercher.\n\n**Usage :** `!ytsearch <mots clefs> [nombre de résultats]`",
+                color=COLORS['error']
+            )
+            await ctx.reply(embed=embed)
+            return
+            
+        # Message de chargement initial
+        loading_embed = self.create_embed(
+            f"{EMOJIS['youtube']} Recherche YouTube", 
+            f"Recherche en cours pour : **{query}**\n\n{self.create_progress_bar(0.2)} 20%",
+            color=COLORS['info']
+        )
+        loading_msg = await ctx.reply(embed=loading_embed)
+        
+        async with ctx.typing():
+            try:
+                # Configuration de yt-dlp pour une recherche YouTube
+                ydl_opts = {
+                    'quiet': True,
+                    'no_warnings': True,
+                    'extract_flat': True,
+                    'default_search': 'ytsearch',
+                    'skip_download': True,
+                    'format': 'best'
+                }
+                
+                # Mettre à jour le message de chargement
+                await loading_msg.edit(embed=self.create_embed(
+                    f"{EMOJIS['youtube']} Recherche YouTube", 
+                    f"Recherche en cours pour : **{query}**\n\n{self.create_progress_bar(0.5)} 50%\nConsultation des serveurs YouTube...",
+                    color=COLORS['info']
+                ))
+                
+                # Effectuer la recherche
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                    search_query = f"ytsearch{count}:{query}"
+                    search_results = ydl.extract_info(search_query, download=False)
+                    
+                # Mettre à jour le message de chargement
+                await loading_msg.edit(embed=self.create_embed(
+                    f"{EMOJIS['youtube']} Recherche YouTube", 
+                    f"Recherche en cours pour : **{query}**\n\n{self.create_progress_bar(0.8)} 80%\nPréparation des résultats...",
+                    color=COLORS['info']
+                ))
+                
+                # Vérifier si nous avons des résultats
+                if not search_results or not search_results.get('entries'):
+                    no_results_embed = self.create_embed(
+                        f"{EMOJIS['warning']} Aucun résultat", 
+                        f"Aucune vidéo trouvée pour la recherche : **{query}**",
+                        color=COLORS['warning']
+                    )
+                    await loading_msg.edit(embed=no_results_embed)
+                    return
+                
+                # Récupérer tous les résultats valides
+                valid_entries = [entry for entry in search_results.get('entries', []) if entry]
+                
+                # Créer une fonction pour générer un embed pour une page spécifique
+                def create_page_embed(page_num, entries_per_page=5):
+                    start_idx = page_num * entries_per_page
+                    end_idx = min(start_idx + entries_per_page, len(valid_entries))
+                    current_entries = valid_entries[start_idx:end_idx]
+                    
+                    page_embed = discord.Embed(
+                        title=f"{EMOJIS['youtube']} Résultats de recherche YouTube",
+                        description=f"Recherche : **{query}**",
+                        color=self.color,
+                        timestamp=discord.utils.utcnow()
+                    )
+                    
+                    # Ajouter chaque résultat à l'embed
+                    for i, entry in enumerate(current_entries, start_idx + 1):
+                        video_title = entry.get('title', 'Titre non disponible')
+                        video_url = f"https://youtu.be/{entry.get('id')}" if entry.get('id') else 'URL non disponible'
+                        
+                        page_embed.add_field(
+                            name=f"{i}. {video_title[:100]}{'...' if len(video_title) > 100 else ''}",
+                            value=f"[Voir sur YouTube]({video_url})",
+                            inline=False
+                        )
+                    
+                    # Ajouter des informations de pagination
+                    total_pages = (len(valid_entries) + entries_per_page - 1) // entries_per_page
+                    page_embed.set_footer(
+                        text=f"MathysieBot™ • YouTube Search | Page {page_num + 1}/{total_pages}",
+                        icon_url=self.icon_url
+                    )
+                    
+                    return page_embed
+                
+                # Créer les boutons de navigation
+                class NavigationView(discord.ui.View):
+                    def __init__(self, *, timeout=180):
+                        super().__init__(timeout=timeout)
+                        self.current_page = 0
+                        self.entries_per_page = 5
+                        self.total_pages = (len(valid_entries) + self.entries_per_page - 1) // self.entries_per_page
+                    
+                    @discord.ui.button(label="◀️ Précédent", style=discord.ButtonStyle.primary, disabled=True)
+                    async def previous_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+                        self.current_page = max(0, self.current_page - 1)
+                        
+                        # Mettre à jour l'état des boutons
+                        self.previous_button.disabled = (self.current_page == 0)
+                        self.next_button.disabled = (self.current_page >= self.total_pages - 1)
+                        
+                        # Mettre à jour l'embed
+                        await interaction.response.edit_message(
+                            embed=create_page_embed(self.current_page, self.entries_per_page),
+                            view=self
+                        )
+                    
+                    @discord.ui.button(label="Suivant ▶️", style=discord.ButtonStyle.primary)
+                    async def next_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+                        self.current_page = min(self.total_pages - 1, self.current_page + 1)
+                        
+                        # Mettre à jour l'état des boutons
+                        self.previous_button.disabled = (self.current_page == 0)
+                        self.next_button.disabled = (self.current_page >= self.total_pages - 1)
+                        
+                        # Mettre à jour l'embed
+                        await interaction.response.edit_message(
+                            embed=create_page_embed(self.current_page, self.entries_per_page),
+                            view=self
+                        )
+                    
+                    async def on_timeout(self):
+                        # Désactiver tous les boutons lorsque le délai expire
+                        for item in self.children:
+                            item.disabled = True
+                        
+                        try:
+                            # Message pourrait avoir été supprimé
+                            await self.message.edit(view=self)
+                        except:
+                            pass
+                
+                # Créer la vue des boutons
+                view = NavigationView()
+                
+                # Afficher les résultats finaux avec les boutons de navigation
+                await loading_msg.edit(
+                    content=None,
+                    embed=create_page_embed(0),
+                    view=view
+                )
+                
+                # Stocker le message pour la gestion du timeout
+                view.message = loading_msg
+                
+            except Exception as e:
+                logger.error(f"Erreur dans la recherche YouTube: {str(e)}")
+                error_embed = self.create_embed(
+                    f"{EMOJIS['error']} Erreur", 
+                    f"Une erreur s'est produite lors de la recherche.\n\n**Détails:** `{str(e)[:100]}...`",
+                    color=COLORS['error']
+                )
+                await loading_msg.edit(embed=error_embed)
+                          
+    @commands.command(
         name="ytinfo",
         help="Affiche des informations détaillées sur une vidéo YouTube",
         description="Analyse et affiche les métadonnées d'une vidéo YouTube",
@@ -407,7 +599,7 @@ class YouTubeDownloader(commands.Cog):
 
         # Message de chargement initial
         loading_embed = self.create_embed(
-            f"{EMOJIS['loading'][0]} Initialisation", 
+            "⏳ Initialisation", 
             f"{self.create_progress_bar(0.1)} 10%\n\nPréparation de l'analyse...",
             color=COLORS['info']
         )
