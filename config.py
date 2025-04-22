@@ -47,6 +47,7 @@ class Config:
         "commands.music",
         "commands.mcstatus",
         "commands.ytdw",
+        "commands.pic"
         "commands.free_games",
         "commands.role",
         # Events
