@@ -13,7 +13,6 @@ class HelpMenu(discord.ui.View):
             if isinstance(item, discord.ui.Button):
                 item.disabled = False
 
-        # Désactive les boutons si aux extrêmes
         if self.index == 0:
             self.previous_button.disabled = True
         if self.index == len(self.embeds) - 1:
@@ -25,7 +24,6 @@ class HelpMenu(discord.ui.View):
     async def previous_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.user != self.author:
             return await interaction.response.send_message("Tu ne peux pas utiliser ces boutons.", ephemeral=True)
-
         self.index -= 1
         await self.update(interaction)
 
@@ -33,7 +31,6 @@ class HelpMenu(discord.ui.View):
     async def next_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.user != self.author:
             return await interaction.response.send_message("Tu ne peux pas utiliser ces boutons.", ephemeral=True)
-
         self.index += 1
         await self.update(interaction)
 
@@ -49,13 +46,7 @@ class HelpCog(commands.Cog):
         for cog_name, cog in self.bot.cogs.items():
             available_commands = []
             for cmd in cog.get_commands():
-                # Si la commande n'a pas de niveau défini, elle est accessible à tous
                 cmd_level = getattr(cmd, 'permission_level', None)
-                
-                # Ajouter la commande si:
-                # 1. Pas de niveau requis (None)
-                # 2. Utilisateur a le niveau requis
-                # 3. Utilisateur est niveau 5 (admin système)
                 if cmd_level is None or cmd_level in user_perms or 5 in user_perms:
                     available_commands.append(cmd)
 
@@ -64,31 +55,43 @@ class HelpCog(commands.Cog):
 
             embed = discord.Embed(
                 title=f"📘 Aide - {cog_name}",
+                description="Utilisez les flèches pour naviguer entre les pages",
                 color=discord.Color.blurple()
             )
 
+            total_commands = len([cmd for cmd in self.bot.commands])
+            available_count = len(available_commands)
+            
+            stats = (
+                "```md\n"
+                "# Statistiques\n"
+                f"> 📊 Commandes disponibles : {available_count}/{total_commands}\n"
+                f"> 🔑 Niveau d'accès : {max(user_perms) if user_perms else 0}\n"
+                "```"
+            )
+            
+            embed.add_field(name="", value=stats, inline=False)
+            embed.add_field(name="", value="━━━━━━━━━ Commandes ━━━━━━━━━", inline=False)
+
             for command in available_commands:
-                # Afficher le niveau uniquement si la commande en a un
                 level_txt = ""
                 if hasattr(command, 'permission_level'):
                     level = getattr(command, 'permission_level')
                     if level is not None:
                         level_txt = f"[Niveau {level}] "
 
-                embed.add_field(
-                    name=f"{command.name}",
-                    value=f"{level_txt}\n**Usage :** `{ctx.prefix}{command.name} {command.usage or ''}`\n{command.help or 'Pas de description.'}`",
-                    inline=False
-                )
+                help_text = command.help or 'Pas de description.'
+                usage = command.usage or command.name
+                
+                name = f"`{usage}`"
+                value = f"{level_txt}{help_text}"
 
-            # Ajouter des stats en bas de l'embed
-            total_commands = len([cmd for cmd in self.bot.commands])
-            available_count = len(available_commands)
-            
-            embed.set_footer(text=(
-                f"📊 {available_count}/{total_commands} commandes disponibles • "
-                f"Niveau d'accès: {max(user_perms) if user_perms else 0}"
-            ))
+                embed.add_field(name=name, value=value, inline=False)
+
+            embed.set_footer(
+                text="MathysieBot™",
+                icon_url=ctx.bot.user.avatar.url if ctx.bot.user.avatar else None
+            )
 
             embeds.append(embed)
 
