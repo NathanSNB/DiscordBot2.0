@@ -4,6 +4,7 @@ import asyncio
 from config import Config
 from loader import load_cogs
 from utils.logger import setup_logger
+from utils.permission_manager import PermissionManager  # Assurez-vous que ce module existe
 import logging
 
 logger = setup_logger()
@@ -16,6 +17,7 @@ class MathysieBot(commands.Bot):
             help_command=None
         )
         self.config = Config
+        self.perm_manager = PermissionManager("data/permissions.json")  # Ajout de l'initialisation
 
     async def setup_hook(self):
         logger.info("🔄 Démarrage du bot...")
