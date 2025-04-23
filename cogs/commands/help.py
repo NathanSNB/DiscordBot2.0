@@ -81,6 +81,15 @@ class HelpCog(commands.Cog):
                     inline=False
                 )
 
+            # Ajouter des stats en bas de l'embed
+            total_commands = len([cmd for cmd in self.bot.commands])
+            available_count = len(available_commands)
+            
+            embed.set_footer(text=(
+                f"📊 {available_count}/{total_commands} commandes disponibles • "
+                f"Niveau d'accès: {max(user_perms) if user_perms else 0}"
+            ))
+
             embeds.append(embed)
 
         if not embeds:
