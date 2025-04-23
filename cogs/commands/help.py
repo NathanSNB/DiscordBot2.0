@@ -40,41 +40,55 @@ class HelpMenu(discord.ui.View):
 class HelpCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self._original_help_command = bot.help_command
-        bot.help_command = None  # Désactive la commande help par défaut
 
-    @commands.command()
-    async def help(self, ctx):
-        """Affiche la liste des commandes disponibles"""
-        # Récupérer les cogs
+    @commands.command(name='help')
+    async def help_command(self, ctx):
+        user_perms = self.bot.perm_manager.get_user_permissions(ctx.author.id)
         embeds = []
+
         for cog_name, cog in self.bot.cogs.items():
-            # Ignore le cog HelpCog lui-même
-            if cog_name == "HelpCog" or not cog.get_commands():
-                continue
+            available_commands = []
+            for cmd in cog.get_commands():
+                # Si la commande n'a pas de niveau défini, elle est accessible à tous
+                cmd_level = getattr(cmd, 'permission_level', None)
                 
-            embed = discord.Embed(title=f"📘 Aide - {cog_name}", color=discord.Color.blurple())
-            for command in cog.get_commands():
+                # Ajouter la commande si:
+                # 1. Pas de niveau requis (None)
+                # 2. Utilisateur a le niveau requis
+                # 3. Utilisateur est niveau 5 (admin système)
+                if cmd_level is None or cmd_level in user_perms or 5 in user_perms:
+                    available_commands.append(cmd)
+
+            if not available_commands:
+                continue
+
+            embed = discord.Embed(
+                title=f"📘 Aide - {cog_name}",
+                color=discord.Color.blurple()
+            )
+
+            for command in available_commands:
+                # Afficher le niveau uniquement si la commande en a un
+                level_txt = ""
+                if hasattr(command, 'permission_level'):
+                    level = getattr(command, 'permission_level')
+                    if level is not None:
+                        level_txt = f"[Niveau {level}] "
+
                 embed.add_field(
-                    name=command.name,
-                    value=f"**Usage :** `{ctx.prefix}{command.name} {command.usage or ''}`\n{command.help or 'Pas de description.'}",
+                    name=f"{command.name}",
+                    value=f"{level_txt}\n**Usage :** `{ctx.prefix}{command.name} {command.usage or ''}`\n{command.help or 'Pas de description.'}`",
                     inline=False
                 )
-            
-            # N'ajoute l'embed que s'il contient au moins une commande
-            if len(embed.fields) > 0:
-                embeds.append(embed)
+
+            embeds.append(embed)
 
         if not embeds:
             return await ctx.send("Aucune commande trouvée.")
 
         view = HelpMenu(embeds, ctx.author)
         await ctx.send(embed=embeds[0], view=view)
-    
-    def cog_unload(self):
-        # Restore original help command when cog is unloaded
-        self.bot.help_command = self._original_help_command
 
 async def setup(bot):
     await bot.add_cog(HelpCog(bot))
-    print("✅ Help cog loaded")
+print("✅ Help cog loaded")
