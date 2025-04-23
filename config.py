@@ -50,6 +50,7 @@ class Config:
         "commands.pic"
         "commands.free_games",
         "commands.role",
+        "commands.whitelist",
         # Events
         "events.logs",
         "events.epicgames",
