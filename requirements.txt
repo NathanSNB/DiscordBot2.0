@@ -49,3 +49,4 @@ platformdirs>=4.3.7
 mcstatus>=10.0.0
 
 # Autres dépendances
+pytz
