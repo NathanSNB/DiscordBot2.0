@@ -22,7 +22,7 @@
 
 1. **Cloner le repository**
    ```bash
-   git clone https://github.com/votre-utilisateur/discordbot.git
+   git clone https://github.com/NathanSNB/DiscordBot2.0.git
    cd discordbot
    ```
 
