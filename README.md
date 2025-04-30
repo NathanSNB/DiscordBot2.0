@@ -152,7 +152,7 @@ Besoin d’aide ou d’un retour ?
 
 ## 📄 Licence
 
-Projet sous licence **MIT**.
+Projet sous licence **GPL 3.0**.
 
 Développé avec ❤️ par **Nathan**
 
