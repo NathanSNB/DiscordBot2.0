@@ -5,6 +5,7 @@ import os
 import json
 from dotenv import load_dotenv
 import logging
+from utils.error import ErrorHandler
 
 # Charger les variables d'environnement
 load_dotenv()
@@ -23,13 +24,8 @@ class Commandes_Urgence(commands.Cog):
     # Gestion des erreurs globale
     @commands.Cog.listener()
     async def on_command_error(self, ctx, error):
-        if isinstance(error, commands.MissingPermissions):
-            await ctx.send("❌ Vous n'avez pas les permissions nécessaires.")
-        elif isinstance(error, commands.CheckFailure):
-            await ctx.send("❌ Accès refusé à cette commande.")
-        else:
-            await ctx.send(f"❌ Une erreur est survenue : {str(error)}")
-            logging.error(f"Erreur : {error}")
+        """Gestion globale des erreurs"""
+        await ErrorHandler.handle_command_error(ctx, error)
 
     def create_embed(self, title, description=None, color=discord.Color(0x2BA3B3)):
         """Crée un embed standard pour les réponses"""

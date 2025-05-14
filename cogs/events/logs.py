@@ -3,6 +3,7 @@ from discord.ext import commands
 import logging
 import os
 from dotenv import load_dotenv
+from utils.error import ErrorHandler
 
 # Configuration du logging
 logging.basicConfig(level=logging.INFO)
@@ -22,13 +23,7 @@ class Commandes_Logs(commands.Cog):
     @commands.Cog.listener()
     async def on_command_error(self, ctx, error):
         """Gestion globale des erreurs"""
-        if isinstance(error, commands.MissingPermissions):
-            await ctx.send("❌ Vous n'avez pas les permissions nécessaires.")
-        elif isinstance(error, commands.ChannelNotFound):
-            await ctx.send("❌ Salon introuvable.")
-        else:
-            logging.error(f"Erreur non gérée : {str(error)}")
-            await ctx.send(f"❌ Une erreur est survenue : {str(error)}")
+        await ErrorHandler.handle_command_error(ctx, error)
 
     def create_embed(self, title, description=None, color=discord.Color(0x2BA3B3)):
         """Crée un embed standard pour les logs"""

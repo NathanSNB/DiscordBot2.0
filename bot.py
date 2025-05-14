@@ -40,5 +40,15 @@ class MathysieBot(commands.Bot):
         logger.warning("🔴 Bot déconnecté")
 
 if __name__ == "__main__":
-    bot = MathysieBot()
-    bot.run(Config.TOKEN)
+    try:
+        if not Config.TOKEN:
+            logger.critical("❌ Le token n'est pas configuré dans config.py")
+            exit(1)
+        bot = MathysieBot()
+        bot.run(Config.TOKEN)
+    except AttributeError:
+        logger.critical("❌ La variable TOKEN n'existe pas dans config.py")
+        exit(1)
+    except Exception as e:
+        logger.critical(f"❌ Erreur inattendue: {str(e)}")
+        exit(1)

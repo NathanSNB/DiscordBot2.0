@@ -5,7 +5,7 @@ import logging
 import json
 import asyncio
 
-# Configuration du logger (si nécessaire)
+# Configuration du logger
 logger = logging.getLogger('bot')
 
 # Liste d'émojis pour l'embed (Unicode seulement pour éviter les erreurs)
@@ -70,7 +70,7 @@ class RolesManagementCog(commands.Cog, name="RoleManager"):
         self.load_channel_config()
         
         logger.info("✅ RolesManagementCog initialisé")
-        
+
     def load_roles(self):
         """Charge la configuration des rôles depuis le fichier JSON"""
         try:

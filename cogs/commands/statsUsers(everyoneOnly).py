@@ -9,6 +9,7 @@ from io import BytesIO
 from collections import defaultdict
 import logging
 from dotenv import load_dotenv
+from utils.error import ErrorHandler
 
 load_dotenv()  # Charge les variables d'environnement du fichier .env
 
@@ -89,12 +90,7 @@ class StatsCommands(commands.Cog):
     @commands.Cog.listener()
     async def on_command_error(self, ctx, error):
         """Gestion globale des erreurs"""
-        if isinstance(error, commands.MissingRequiredArgument):
-            await ctx.send("❌ Il manque un argument requis.")
-        elif isinstance(error, commands.BadArgument):
-            await ctx.send("❌ L'argument fourni n'est pas valide.")
-        else:
-            await ctx.send(f"❌ Une erreur est survenue : {str(error)}")
+        await ErrorHandler.handle_command_error(ctx, error)
 
     @commands.Cog.listener()
     async def on_presence_update(self, before, after):

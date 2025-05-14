@@ -7,6 +7,7 @@ import aiohttp
 import os
 from dotenv import load_dotenv
 from urllib.parse import urlparse
+from utils.error import ErrorHandler
 
 class Commandes_Webs(commands.Cog):
     def __init__(self, bot):
@@ -21,12 +22,7 @@ class Commandes_Webs(commands.Cog):
     @commands.Cog.listener()
     async def on_command_error(self, ctx, error):
         """Gestion globale des erreurs"""
-        if isinstance(error, commands.MissingRequiredArgument):
-            await ctx.send("❌ Il manque un argument requis.")
-        elif isinstance(error, commands.BadArgument):
-            await ctx.send("❌ L'argument fourni n'est pas valide.")
-        else:
-            await ctx.send(f"❌ Une erreur est survenue : {str(error)}")
+        await ErrorHandler.handle_command_error(ctx, error)
 
     def create_embed(self, title, description=None, color=discord.Color(0x2BA3B3)):
         """Crée un embed standard"""
