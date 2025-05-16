@@ -167,45 +167,83 @@ class StatsCommands(commands.Cog):
         return f"{days}j {remaining_hours}h {remaining_mins}min"
 
     def create_chart(self, data, title, ylabel, filename, kind='bar'):
-        """Crée un graphique"""
-        plt.clf()  # Nettoie la figure précédente
-        plt.figure(figsize=(10, 6))
-        plt.style.use('dark_background')
-        
-        # Conversion des données pour le graphique
-        labels = list(data.keys())
-        values = list(data.values())
-        
-        if kind == 'bar':
-            plt.bar(range(len(labels)), values, color='#2BA3B3', alpha=0.7)
-            plt.xticks(range(len(labels)), labels, rotation=45, ha='right')
-        elif kind == 'line':
-            try:
-                # Pour les séries temporelles
-                dates = [datetime.datetime.strptime(str(label), "%Y-%m-%d %H:00") 
-                        if isinstance(label, str) else label 
-                        for label in labels]
-                plt.plot(dates, values, marker='o', linestyle='-', color='#2BA3B3')
-                plt.gca().xaxis.set_major_formatter(mdates.DateFormatter("%d/%m"))
-                plt.gca().xaxis.set_major_locator(mdates.DayLocator(interval=2))
-            except ValueError:
-                # Pour les données non-temporelles
-                plt.plot(range(len(labels)), values, marker='o', 
-                        linestyle='-', color='#2BA3B3')
+        """Crée un graphique avec gestion d'erreurs améliorée"""
+        try:
+            # Nettoyage complet des figures précédentes
+            plt.close('all')
+            
+            # Vérification des données
+            if not data or not isinstance(data, dict):
+                logger.error("Données invalides pour le graphique")
+                return None
+
+            # Conversion et validation des données
+            labels = list(data.keys())
+            values = [float(v) if isinstance(v, (int, str)) else v for v in data.values()]
+            
+            if not labels or not values or len(labels) != len(values):
+                logger.error("Données incohérentes pour le graphique")
+                return None
+
+            # Création figure avec style explicite
+            fig = plt.figure(figsize=(10, 6), dpi=100, facecolor='#2F3136')
+            ax = fig.add_subplot(111)
+            
+            # Application du style dark
+            plt.style.use('dark_background')
+            ax.set_facecolor('#2F3136')
+            
+            if kind == 'bar':
+                ax.bar(range(len(labels)), values, color='#2BA3B3', alpha=0.7)
                 plt.xticks(range(len(labels)), labels, rotation=45, ha='right')
+            elif kind == 'line':
+                try:
+                    dates = []
+                    for label in labels:
+                        try:
+                            if isinstance(label, str):
+                                dates.append(datetime.datetime.strptime(label, "%Y-%m-%d %H:00"))
+                            else:
+                                dates.append(label)
+                        except ValueError:
+                            dates.append(label)
+                    
+                    if all(isinstance(d, datetime.datetime) for d in dates):
+                        ax.plot(dates, values, marker='o', linestyle='-', color='#2BA3B3')
+                        ax.xaxis.set_major_formatter(mdates.DateFormatter("%d/%m"))
+                        ax.xaxis.set_major_locator(mdates.DayLocator(interval=2))
+                    else:
+                        ax.plot(range(len(labels)), values, marker='o', linestyle='-', color='#2BA3B3')
+                        plt.xticks(range(len(labels)), labels, rotation=45, ha='right')
+                except Exception as e:
+                    logger.error(f"Erreur lors du tracé de ligne: {e}")
+                    ax.plot(range(len(labels)), values, marker='o', linestyle='-', color='#2BA3B3')
+                    plt.xticks(range(len(labels)), labels, rotation=45, ha='right')
 
-        plt.title(title)
-        plt.ylabel(ylabel)
-        plt.grid(True, linestyle='--', alpha=0.3)
-        plt.tight_layout()
-
-        # Sauvegarde en mémoire
-        buffer = BytesIO()
-        plt.savefig(buffer, format='png', bbox_inches='tight', dpi=100)
-        buffer.seek(0)
-        plt.close()
-        
-        return buffer
+            # Personnalisation du graphique
+            plt.title(title, pad=20, color='white')
+            plt.ylabel(ylabel, color='white')
+            plt.grid(True, linestyle='--', alpha=0.3)
+            
+            # Ajustement des marges
+            plt.tight_layout(pad=2.0)
+            
+            # Sauvegarde en mémoire avec gestion d'erreur
+            buffer = BytesIO()
+            try:
+                plt.savefig(buffer, format='png', bbox_inches='tight', 
+                           facecolor='#2F3136', edgecolor='none', dpi=100)
+                buffer.seek(0)
+                return buffer
+            except Exception as e:
+                logger.error(f"Erreur lors de la sauvegarde du graphique: {e}")
+                return None
+            finally:
+                plt.close('all')  # Nettoyage final
+                
+        except Exception as e:
+            logger.error(f"Erreur lors de la création du graphique: {e}")
+            return None
 
     def get_sorted_data(self, data_dict, limit=None, reverse=True):
         """Trie les données d'un dictionnaire"""
@@ -499,7 +537,10 @@ class StatsCommands(commands.Cog):
             "Niveau d'activité",
             f"{chart_type}_activity"
         )
-
+        if buffer is None:
+            await ctx.send("❌ Désolé, impossible de générer le graphique pour le moment.")
+            return
+            
         await ctx.send(
             file=discord.File(buffer, filename=f'activity_{chart_type}.png')
         )

@@ -149,6 +149,41 @@ class Commandes_Logs(commands.Cog):
         log_message = f"⛔ **{user}** a été banni par **{admin}**"
         await self.send_log_message(log_message, "Membre Banni")
 
+    @commands.Cog.listener()
+    async def on_warning_add(self, member: discord.Member, reason: str, admin: discord.Member, warn_count: int):
+        """Surveille l'ajout d'avertissements"""
+        log_message = (
+            f"⚠️ **{member}** a reçu un avertissement\n"
+            f"**Par:** {admin.mention}\n"
+            f"**Raison:** {reason or 'Aucune raison'}\n"
+            f"**Total:** {warn_count}/3"
+        )
+        await self.send_log_message(log_message, "Avertissement Ajouté")
+
+    @commands.Cog.listener()
+    async def on_warning_remove(self, member: discord.Member, admin: discord.Member, warn_num: int):
+        """Surveille la suppression d'avertissements"""
+        log_message = (
+            f"🗑️ **{member}** a eu son avertissement #{warn_num} supprimé\n"
+            f"**Par:** {admin.mention}"
+        )
+        await self.send_log_message(log_message, "Avertissement Supprimé")
+
+    @commands.Cog.listener()
+    async def on_warning_expire(self, member: discord.Member):
+        """Surveille l'expiration des avertissements"""
+        log_message = f"⌛ Les avertissements de **{member}** ont expiré"
+        await self.send_log_message(log_message, "Avertissements Expirés")
+
+    @commands.Cog.listener()
+    async def on_warning_auto_mute(self, member: discord.Member):
+        """Surveille les mutes automatiques après 3 avertissements"""
+        log_message = (
+            f"🔇 **{member}** a été mute automatiquement\n"
+            f"**Raison:** 3 avertissements en moins de 20 minutes"
+        )
+        await self.send_log_message(log_message, "Mute Automatique")
+
 async def setup(bot):
     """Ajoute ce Cog au bot"""
     await bot.add_cog(Commandes_Logs(bot))

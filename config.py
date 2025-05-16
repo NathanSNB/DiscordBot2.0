@@ -50,6 +50,7 @@ class Config:
         "commands.pic",
         "commands.free_games",
         "commands.role",
+        "commands.rules(admOnly)",
         "commands.whitelist",
         # Events
         "events.logs",
@@ -57,7 +58,6 @@ class Config:
         "events.mcstatusTraker",
         "events.free_games_events",
         "events.statsUsers",
-        "events.roles"
     ]
     
     # Couleurs
