@@ -1,5 +1,6 @@
 import discord
 from discord.ext import commands
+from utils import logger
 from utils.error import ErrorHandler
 from utils.rules_manager import RulesManager
 from utils.embed_manager import EmbedManager
@@ -192,63 +193,19 @@ class RulesCommands(commands.Cog):
             return
 
         try:
-            # Charger la configuration pour obtenir le rôle par défaut
-            with open(self.config_file, 'r') as f:
-                config = json.load(f)
-                default_role_id = config.get('default_role_id')
-                
-                # Si le rôle par défaut existe, on le retire
-                if default_role_id:
-                    default_role = guild.get_role(default_role_id)
-                    if default_role and default_role in member.roles:
-                        await member.remove_roles(default_role)
-                        print(f"Rôle par défaut retiré de {member.name}")
-
-            # Attribution du rôle vérifié (code existant)
             if self.verified_role_id:
-                role = guild.get_role(self.verified_role_id)
-                if role:
-                    await member.add_roles(role)
-                    
-                    # Récupération du cog RolesManagementCog
-                    roles_cog = self.bot.get_cog('RoleManager')
-                    if roles_cog:
-                        roles_channel = guild.get_channel(roles_cog.default_channel_id)
-                        if roles_channel:
-                            # Création et envoi de l'embed d'accès avec les informations des rôles
-                            try:
-                                access_embed = discord.Embed(
-                                    title="✅ Accès accordé !",
-                                    description=f"Bienvenue officiellement sur **{guild.name}** !\nTu as maintenant accès à l'ensemble du serveur.",
-                                    color=discord.Color.green()
-                                )
-                                
-                                access_embed.add_field(
-                                    name="🎭 Attribution des Rôles",
-                                    value=f"Rends-toi dans {roles_channel.mention} pour choisir tes rôles !",
-                                    inline=False
-                                )
-                                
-                                access_embed.add_field(
-                                    name="📋 Comment faire ?",
-                                    value="Choisis les rôles qui t'intéressent en cliquant sur les réactions correspondantes.",
-                                    inline=False
-                                )
-                                
-                                if guild.icon:
-                                    access_embed.set_thumbnail(url=guild.icon.url)
-                                    
-                                await member.send(embed=access_embed)
-                            except discord.Forbidden:
-                                pass  # L'utilisateur a peut-être désactivé ses MPs
+                verified_role = guild.get_role(self.verified_role_id)
+                if verified_role:
+                    # Déléguer la gestion à RulesManager
+                    await RulesManager.handle_rule_accept(member, verified_role)
 
-                    # Retirer la réaction
-                    channel = guild.get_channel(payload.channel_id)
-                    message = await channel.fetch_message(payload.message_id)
-                    await message.remove_reaction(payload.emoji, member)
+            # Retirer la réaction dans tous les cas
+            channel = guild.get_channel(payload.channel_id)
+            message = await channel.fetch_message(payload.message_id)
+            await message.remove_reaction(payload.emoji, member)
 
         except Exception as e:
-            print(f"❌ Erreur lors du traitement de la réaction: {str(e)}")
+            logger.error(f"❌ Erreur lors du traitement de la réaction: {str(e)}")
 
     @commands.command(
         name="updaterules",

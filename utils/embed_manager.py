@@ -97,3 +97,25 @@ class EmbedManager:
             embed.set_thumbnail(url=guild.icon.url)
 
         return embed
+
+    @staticmethod
+    def create_access_granted_dm(guild=None, roles_channel=None) -> discord.Embed:
+        """Crée un embed pour le message de bienvenue en DM"""
+        embed = discord.Embed(
+            title="✅ Accès accordé !",
+            description=f"Bienvenue officiellement sur {guild.name if guild else 'notre serveur'} !\nTu as maintenant accès à l'ensemble du serveur.",
+            color=discord.Color.green()
+        )
+
+        if roles_channel:
+            embed.add_field(
+                name="🎭 Attribution des Rôles",
+                value=f"Rends-toi dans {roles_channel.mention} pour choisir tes rôles !",
+                inline=False
+            )
+
+        if guild and guild.icon:
+            embed.set_thumbnail(url=guild.icon.url)
+
+        return embed
+

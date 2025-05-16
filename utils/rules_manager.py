@@ -141,15 +141,41 @@ class RulesManager:
                 logger.info(f"Le membre {member.name} a déjà le rôle {role.name}, pas de message envoyé")
                 return False
                 
-            # Si le membre n'a pas le rôle, on le lui attribue
+            # Retirer le rôle par défaut
+            with open(RulesManager.CONFIG_FILE, 'r') as f:
+                config = json.load(f)
+            default_role_id = config.get('default_role_id')
+            if default_role_id:
+                default_role = member.guild.get_role(default_role_id)
+                if default_role and default_role in member.roles:
+                    await member.remove_roles(default_role)
+                    logger.info(f"🔄 Rôle Nouveau Membre retiré de {member.name}")
+            
+            # Ajouter le rôle vérifié
             await member.add_roles(role)
             
-            # Envoyer le message uniquement si le rôle vient d'être ajouté
+            # Créer et envoyer l'embed de confirmation
+            embed = discord.Embed(
+                title="✅ Accès accordé !",
+                description=f"Bienvenue officiellement sur {member.guild.name} !\nTu as maintenant accès à l'ensemble du serveur.",
+                color=discord.Color.green()
+            )
+
+            # Ajouter l'information sur les rôles
             roles_channel = discord.utils.get(member.guild.channels, name="roles-notifications")
             if roles_channel:
-                embed = EmbedManager.create_access_granted(member.guild, roles_channel)
-                await member.send(embed=embed)
-                logger.info(f"✅ Rôle {role.name} ajouté et message envoyé à {member.name}")
+                embed.add_field(
+                    name="🎭 Attribution des Rôles",
+                    value=f"Rends-toi dans {roles_channel.mention} pour choisir tes rôles !",
+                    inline=False
+                )
+            
+            # Ajouter l'icône du serveur si disponible
+            if member.guild.icon:
+                embed.set_thumbnail(url=member.guild.icon.url)
+
+            await member.send(embed=embed)
+            logger.info(f"✅ Rôle {role.name} ajouté et message envoyé à {member.name}")
             
             return True
                 
@@ -159,5 +185,59 @@ class RulesManager:
         except Exception as e:
             logger.error(f"❌ Erreur lors de l'attribution du rôle: {str(e)}")
             return False
+
+    @staticmethod
+    async def handle_rule_accept(member: discord.Member, verified_role: discord.Role):
+        """Gère l'acceptation des règles par un membre"""
+        try:
+            # Retirer le rôle par défaut
+            with open(RulesManager.CONFIG_FILE, 'r') as f:
+                config = json.load(f)
+            
+            # Supprimer le rôle par défaut s'il existe
+            default_role_id = config.get('default_role_id')
+            if default_role_id:
+                default_role = member.guild.get_role(default_role_id)
+                if default_role and default_role in member.roles:
+                    await member.remove_roles(default_role)
+                    logger.info(f"🔄 Rôle par défaut retiré de {member.name}")
+
+            # Ajouter le rôle vérifié
+            await member.add_roles(verified_role)
+            
+            # Récupérer le salon des rôles configuré
+            channel_config_file = 'data/channel_config.json'
+            roles_channel = None
+            
+            if os.path.exists(channel_config_file):
+                with open(channel_config_file, 'r') as f:
+                    channel_config = json.load(f)
+                    roles_channel_id = channel_config.get('channel_id')
+                    if roles_channel_id:
+                        roles_channel = member.guild.get_channel(roles_channel_id)
+
+            # Créer et envoyer l'embed de confirmation
+            embed = discord.Embed(
+                title="✅ Accès accordé !",
+                description=f"Bienvenue officiellement sur **{member.guild.name}** !\nTu as maintenant accès à l'ensemble du serveur.",
+                color=discord.Color.green()
+            )
+
+            # Ajouter l'information sur les rôles avec le salon configuré
+            if roles_channel:
+                embed.add_field(
+                    name="🎭 Attribution des Rôles",
+                    value=f"Rends-toi dans {roles_channel.mention} pour choisir tes rôles !",
+                    inline=False
+                )
+            
+            if member.guild.icon:
+                embed.set_thumbnail(url=member.guild.icon.url)
+
+            await member.send(embed=embed)
+            logger.info(f"✅ Accès accordé à {member.name}")
+
+        except Exception as e:
+            logger.error(f"❌ Erreur lors de l'attribution du rôle vérifié: {str(e)}")
 
 __all__ = ['RulesManager']
