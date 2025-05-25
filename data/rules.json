@@ -1,0 +1,59 @@
+{
+    "welcome_message": "> :sparkles: **Bienvenue dans _{server_name}_ !**\n> Un serveur où règnent chill, bonne humeur et respect. Pour garder cette ambiance au top, merci de lire et suivre ce petit règlement :point_down:\n\n━━━━━━━━━━━━━━━━━━━━\n\n:scroll:・**RÈGLES OFFICIELLES DE LA MATHYSIE**",
+    "rules": [
+        {
+            "title": "1. Pas de fausses infos",
+            "emoji": ":mag:",
+            "description": "➤ Reste **clair** et **honnête** dans tes messages. La désinformation est interdite."
+        },
+        {
+            "title": "2. Utilise les bons salons",
+            "emoji": ":dividers:",
+            "description": "➤ Chaque salon a un but précis.\nÉvite le hors-sujet pour que tout reste clean :soap:"
+        },
+        {
+            "title": "3. Pas de spam ni d'usurpation",
+            "emoji": ":no_entry_sign:",
+            "description": "➤ Flood, spam, pub sauvage ou se faire passer pour quelqu'un = **:no_pedestrians: no way**."
+        },
+        {
+            "title": "4. Respect & bienveillance",
+            "emoji": ":handshake:",
+            "description": "➤ Zéro tolérance pour le harcèlement, les propos haineux ou toxiques.\nIci, on est là pour **partager**, pas pour **détruire** :person_in_lotus_position:"
+        },
+        {
+            "title": "5. Respect de la vie privée",
+            "emoji": ":shield:",
+            "description": "➤ Pas de partage de données perso (même les tiennes).\nLa sécurité, c'est pour tout le monde :closed_lock_with_key:"
+        },
+        {
+            "title": "6. Contenu approprié only",
+            "emoji": ":no_entry_sign:",
+            "description": "➤ NSFW, propos choquants ou trash ? **C'est non.**\nOn garde ça propre et chill :leaves:"
+        },
+        {
+            "title": "7. Données & bots",
+            "emoji": ":robot:",
+            "description": "➤ Les messages peuvent être utilisés pour **entraîner les bots** du serveur.\nEn écrivant ici, tu acceptes gentiment ce point :space_invader:"
+        },
+        {
+            "title": "8.Mentions staff",
+            "emoji": ":octagonal_sign:",
+            "description": "➤ Pas de ping inutile ou d'appel au secours non justifié.\nLe staff veille, mais ne le dérange pas sans raison :zzz:"
+        }
+    ],
+    "sanctions": {
+        "title": "SANCTIONS",
+        "emoji": ":scales:",
+        "content": [
+            ":exclamation: Avertissements",
+            ":mute: Mute temporaire",
+            ":door: Kick temporaire",
+            ":no_entry: Bannissement\n"
+        ],
+        "header": null, 
+        "format": "{emoji}・{title}\n{emoji} {content}",
+        "separator": "\n━━━━━━━━━━━━━━━━━━━━\n"
+    },
+    "footer": "> :mega: **Fais de {server_name} un endroit où il fait bon vivre.**\n> On compte sur toi :blue_heart:"
+}

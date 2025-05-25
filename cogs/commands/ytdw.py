@@ -7,6 +7,8 @@ import logging
 from typing import Optional, Tuple
 from datetime import datetime
 
+from utils.embed_manager import EmbedManager
+
 logger = logging.getLogger('bot')
 
 # Constants à ajouter en haut du fichier
@@ -99,7 +101,7 @@ class YouTubeDownloader(commands.Cog):
 
     def create_embed(self, title, description="", color=None, thumbnail=None, image=None, fields=None):
         """Crée un embed Discord amélioré"""
-        color = color or self.color
+        color = color or EmbedManager.get_default_color()
         embed = discord.Embed(
             title=title, 
             description=description or "", 
@@ -286,11 +288,10 @@ class YouTubeDownloader(commands.Cog):
     @commands.command(
         name="ytdw",
         help="Télécharge une vidéo YouTube",
-        description="Extrait les liens audio et vidéo d'une URL YouTube",
-        usage="!ytdw <url>"
+        description="Extrait les liens audio et vidéo d'une URL YouTube pour un téléchargement facile",
+        usage="<url>"
     )
     async def download(self, ctx: commands.Context, url: str = None):
-        """Télécharge le contenu d'une URL YouTube"""
         if not url:
             embed = self.create_embed(
                 f"{EMOJIS['error']} Paramètre manquant", 
@@ -381,10 +382,9 @@ class YouTubeDownloader(commands.Cog):
         name="ytsearch",
         help="Recherche des vidéos sur YouTube",
         description="Permet de rechercher des vidéos pertinentes sur YouTube en fonction des mots-clés fournis",
-        usage="!ytsearch <mots clefs> [count]"
+        usage="<mots clefs> [count]"
     )
     async def youtube_search(self, ctx, *args):
-        """Recherche des vidéos sur YouTube et affiche les résultats"""
         if not args:
             embed = self.create_embed(
                 f"{EMOJIS['error']} Paramètre manquant", 
@@ -573,10 +573,9 @@ class YouTubeDownloader(commands.Cog):
         name="ytinfo",
         help="Affiche des informations détaillées sur une vidéo YouTube",
         description="Analyse et affiche les métadonnées d'une vidéo YouTube",
-        usage="!ytinfo <url>"
+        usage="<url>"
     )
     async def youtube_info(self, ctx, url=None):
-        """Affiche des informations détaillées sur une vidéo YouTube"""
         if not url:
             embed = self.create_embed(
                 f"{EMOJIS['error']} Paramètre manquant", 

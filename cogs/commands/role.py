@@ -4,6 +4,7 @@ import os
 import logging
 import json
 import asyncio
+from utils.embed_manager import EmbedManager
 
 # Configuration du logger
 logger = logging.getLogger('bot')
@@ -25,7 +26,11 @@ def create_embed(title, description=None, embed_type="info"):
     if embed_type in EMBED_EMOJIS:
         emoji_prefix = EMBED_EMOJIS[embed_type][0] + " "
     
-    embed = discord.Embed(title=emoji_prefix + title, description=description, color=discord.Color(0x2BA3B3))
+    embed = discord.Embed(
+        title=emoji_prefix + title, 
+        description=description, 
+        color=EmbedManager.get_default_color()
+    )
     embed.set_footer(text="Bot Discord - Système de Rôles")
     return embed
 
@@ -145,9 +150,9 @@ class RolesManagementCog(commands.Cog, name="RoleManager"):
         
     @commands.command(
         name="roles",
-        help="Envoie le menu de sélection des rôles dans le canal actuel",
+        help="Envoie le menu de sélection des rôles",
         description="Cette commande crée un menu interactif permettant aux utilisateurs de s'attribuer ou de retirer des rôles prédéfinis.",
-        usage="!roles"
+        usage=""
     )
     @commands.has_permissions(administrator=True)
     async def role_menu_command(self, ctx):
@@ -155,7 +160,7 @@ class RolesManagementCog(commands.Cog, name="RoleManager"):
         logger.info(f"⚙️ Menu rôles demandé par {ctx.author}")
         try:
             if not self.roles_data:
-                await ctx.send("❌ Aucun rôle configuré. Utilisez !configrole pour en ajouter.")
+                await ctx.send("❌ Aucun rôle configuré. Utilisez !roleadd pour en ajouter.")
                 return
 
             embed = create_embed(
@@ -187,10 +192,10 @@ class RolesManagementCog(commands.Cog, name="RoleManager"):
             await ctx.send(f"❌ Une erreur est survenue: {str(e)}")
 
     @commands.command(
-        name="refreshroles",
+        name="rolesync",
         help="Actualise le menu des rôles dans le canal par défaut",
         description="Supprime l'ancien menu des rôles et en crée un nouveau avec les rôles actuellement configurés.",
-        usage="!refreshroles"
+        usage=""
     )
     @commands.has_permissions(administrator=True)
     async def refreshroles_command(self, ctx):
@@ -199,7 +204,7 @@ class RolesManagementCog(commands.Cog, name="RoleManager"):
             # Vérifier si le canal par défaut existe
             channel = self.bot.get_channel(self.default_channel_id)
             if not channel:
-                await ctx.send(f"❌ Canal avec ID {self.default_channel_id} non trouvé. Utilisez !setchannel pour configurer un canal valide.")
+                await ctx.send(f"❌ Canal avec ID {self.default_channel_id} non trouvé. Utilisez !setrole pour configurer un canal valide.")
                 return
                 
             # Envoyer un message temporaire indiquant que l'actualisation est en cours
@@ -235,16 +240,16 @@ class RolesManagementCog(commands.Cog, name="RoleManager"):
             logger.error(f"❌ Erreur actualisation menu: {str(e)}")
 
     @commands.command(
-        name="configrole",
+        name="roleadd",
         help="Configure un nouveau rôle pour le menu avec un emoji personnalisé",
         description="Ajoute un rôle au système de distribution automatique avec un emoji et une description personnalisée.",
-        usage="!configrole @Role 🌟 Description du rôle"
+        usage="@Role 🌟 Description du rôle"
     )
     @commands.has_permissions(administrator=True)
     async def configrole_command(self, ctx, role: discord.Role, emoji: str = "🔹", *, description: str = ""):
         """Configure un nouveau rôle pour le menu avec un emoji personnalisé
         
-        Usage: !configrole @Role 🌟 Description du rôle
+        Usage: !roleadd @Role 🌟 Description du rôle
         """
         # Vérifier si l'emoji est valide (Unicode ou emoji Discord)
         if len(emoji) > 2 and not emoji.startswith('<'):
@@ -275,10 +280,10 @@ class RolesManagementCog(commands.Cog, name="RoleManager"):
         logger.info(f"✅ Rôle {role.name} configuré par {ctx.author} avec emoji {emoji}")
 
     @commands.command(
-        name="delrole",
+        name="roledel",
         help="Supprime un rôle de la configuration",
         description="Retire un rôle du système de distribution automatique.",
-        usage="!delrole @Role"
+        usage="@Role"
     )
     @commands.has_permissions(administrator=True)
     async def delrole_command(self, ctx, role: discord.Role):
@@ -308,10 +313,10 @@ class RolesManagementCog(commands.Cog, name="RoleManager"):
             ))
 
     @commands.command(
-        name="listroles",
+        name="rolelist",
         help="Affiche la liste des rôles configurés",
         description="Montre tous les rôles actuellement configurés dans le système avec leurs descriptions et emojis.",
-        usage="!listroles"
+        usage=""
     )
     @commands.has_permissions(administrator=True)
     async def listroles_command(self, ctx):
@@ -319,7 +324,7 @@ class RolesManagementCog(commands.Cog, name="RoleManager"):
         if not self.roles_data:
             await ctx.send(embed=create_embed(
                 "Aucun rôle configuré", 
-                "Utilisez !configrole pour ajouter des rôles",
+                "Utilisez !roleadd pour ajouter des rôles",
                 "error"
             ))
             return
@@ -344,10 +349,10 @@ class RolesManagementCog(commands.Cog, name="RoleManager"):
         logger.info(f"📋 Liste des rôles affichée pour {ctx.author}")
 
     @commands.command(
-        name="setchannel",
+        name="setrole",
         help="Définit le canal par défaut pour l'affichage du menu des rôles",
-        description="Configure le canal où sera affiché le menu des rôles lors de l'utilisation de !refreshroles.",
-        usage="!setchannel #canal"
+        description="Configure le canal où sera affiché le menu des rôles lors de l'utilisation de !rolesync.",
+        usage="#canal"
     )
     @commands.has_permissions(administrator=True)
     async def setchannel_command(self, ctx, channel: discord.TextChannel = None):

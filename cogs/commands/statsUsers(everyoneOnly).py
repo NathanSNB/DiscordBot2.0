@@ -10,6 +10,7 @@ from collections import defaultdict
 import logging
 from dotenv import load_dotenv
 from utils.error import ErrorHandler
+from utils.embed_manager import EmbedManager
 
 load_dotenv()  # Charge les variables d'environnement du fichier .env
 
@@ -148,8 +149,10 @@ class StatsCommands(commands.Cog):
         except Exception as e:
             logger.error(f"❌ Erreur tracking jeu: {str(e)}")
 
-    def create_embed(self, title, description=None, color=discord.Color(0x2BA3B3)):
+    def create_embed(self, title, description=None, color=None):
         """Crée un embed standard"""
+        if color is None:
+            color = EmbedManager.get_default_color()
         embed = discord.Embed(title=title, description=description, color=color)
         embed.set_footer(text="📊 Système de Statistiques")
         return embed
@@ -266,7 +269,7 @@ class StatsCommands(commands.Cog):
         name="stats",
         help="Voir les statistiques d'un membre",
         description="Affiche les statistiques détaillées d'un membre du serveur",
-        usage="!stats [@membre]"
+        usage="[@membre]"
     )
     async def show_stats(self, ctx, member: discord.Member = None):
         """Affiche les statistiques d'un membre"""
@@ -304,7 +307,7 @@ class StatsCommands(commands.Cog):
         name="serverstats",
         help="Statistiques du serveur",
         description="Affiche les statistiques globales du serveur avec graphique",
-        usage="!serverstats"
+        usage=""
     )
     async def server_stats(self, ctx):
         """Affiche les statistiques du serveur avec graphique"""
@@ -375,7 +378,7 @@ class StatsCommands(commands.Cog):
         name="top",
         help="Classement des membres",
         description="Affiche le top des membres selon différents critères",
-        usage="!top [messages/vocal/streaming] [nombre]"
+        usage="[messages/vocal/streaming] [nombre]"
     )
     async def top_members(self, ctx, category="messages", limit: int = 5):
         """Affiche le classement des membres"""
@@ -442,7 +445,7 @@ class StatsCommands(commands.Cog):
         name="channelstats",
         help="Statistiques des salons",
         description="Affiche les statistiques des salons textuels ou vocaux",
-        usage="!channelstats [text/voice]"
+        usage="[text/voice]"
     )
     async def channel_stats(self, ctx, channel_type="text"):
         """Affiche les statistiques des salons"""
@@ -467,7 +470,7 @@ class StatsCommands(commands.Cog):
         name="emojistats",
         help="Statistiques des emojis",
         description="Affiche les emojis les plus utilisés sur le serveur",
-        usage="!emojistats [nombre]"
+        usage="[nombre]"
     )
     async def emoji_stats(self, ctx, limit: int = 10):
         """Affiche les statistiques des emojis"""
@@ -513,7 +516,7 @@ class StatsCommands(commands.Cog):
         name="activity",
         help="Graphique d'activité",
         description="Affiche un graphique d'activité par heure ou par jour",
-        usage="!activity [hourly/daily]"
+        usage="[hourly/daily]"
     )
     async def activity_chart(self, ctx, chart_type="hourly"):
         """Affiche un graphique d'activité"""
@@ -549,7 +552,7 @@ class StatsCommands(commands.Cog):
         name="gamestats",
         help="Statistiques des jeux",
         description="Affiche les jeux les plus joués sur le serveur",
-        usage="!gamestats [nombre]"
+        usage="[nombre]"
     )
     async def game_stats(self, ctx, limit: int = 10):
         """Affiche les statistiques des jeux"""

@@ -2,13 +2,16 @@ import random
 import asyncio
 import discord
 from discord.ext import commands
+from utils.embed_manager import EmbedManager
 
 class CommandesGénérales(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    def create_embed(self, title, description=None, color=discord.Color(0x2BA3B3)):
+    def create_embed(self, title, description=None, color=None):
         """Crée un embed standard"""
+        if color is None:
+            color = EmbedManager.get_default_color()
         embed = discord.Embed(title=title, description=description, color=color)
         embed.set_footer(text="Bot Discord - Commandes Générales")
         return embed
@@ -26,7 +29,7 @@ class CommandesGénérales(commands.Cog):
         name="calc",
         help="Calculatrice simple",
         description="Effectue une opération mathématique entre deux nombres",
-        usage="!calc <nombre1> <opérateur> <nombre2>"
+        usage="<nombre1> <opérateur> <nombre2>"
     )
     async def calc(self, ctx, a: float, operation: str, b: float):
         try:
@@ -59,7 +62,7 @@ class CommandesGénérales(commands.Cog):
         name="roll",
         help="Lance un dé",
         description="Génère un nombre aléatoire entre 1 et 10",
-        usage="!roll"
+        usage=""
     )
     async def roll(self, ctx):
         result = random.randint(1, 10)
@@ -73,7 +76,7 @@ class CommandesGénérales(commands.Cog):
         name="say",
         help="Répète un message",
         description="Répète un message dans un salon spécifique un certain nombre de fois",
-        usage="!say <message> [#salon] [nombre]"
+        usage="<message> [#salon] [nombre]"
     )
     async def say(self, ctx, *, args):
         """Répète un message dans un salon"""

@@ -4,6 +4,7 @@ import logging
 import os
 from dotenv import load_dotenv
 from utils.error import ErrorHandler
+from utils.embed_manager import EmbedManager
 
 # Configuration du logging
 logging.basicConfig(level=logging.INFO)
@@ -25,8 +26,10 @@ class Commandes_Logs(commands.Cog):
         """Gestion globale des erreurs"""
         await ErrorHandler.handle_command_error(ctx, error)
 
-    def create_embed(self, title, description=None, color=discord.Color(0x2BA3B3)):
+    def create_embed(self, title, description=None, color=None):
         """Crée un embed standard pour les logs"""
+        if color is None:
+            color = EmbedManager.get_default_color()
         embed = discord.Embed(title=title, description=description, color=color)
         embed.set_footer(text="Système de Logs")
         return embed

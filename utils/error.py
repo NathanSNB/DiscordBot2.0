@@ -3,6 +3,7 @@ from discord.ext import commands
 import logging
 import time
 from collections import defaultdict
+from utils.embed_manager import EmbedManager
 
 logger = logging.getLogger('bot')
 
@@ -28,10 +29,10 @@ class ErrorHandler:
         ErrorHandler._recent_errors[ctx.author.id][error_key] = current_time
 
         # Créer et envoyer l'embed d'erreur
-        embed = discord.Embed(
+        embed = EmbedManager.create_embed(
             title="❌ Erreur",
             description=message,
-            color=discord.Color.red()
+            color=discord.Color.red()  # Garder la couleur rouge pour les erreurs
         )
         await ctx.send(embed=embed)
 
@@ -40,27 +41,19 @@ class ErrorHandler:
 
     @staticmethod
     async def handle_command_error(ctx, error):
-        """Gestionnaire d'erreurs centralisé pour toutes les commandes"""
-        error_message = None
-
-        if isinstance(error, commands.MissingRequiredArgument):
-            error_message = "Il manque un argument requis."
-        elif isinstance(error, commands.BadArgument):
-            error_message = "L'argument fourni n'est pas valide."
-        elif isinstance(error, commands.MissingPermissions):
-            error_message = "Vous n'avez pas les permissions nécessaires."
-        elif isinstance(error, commands.CheckFailure):
-            error_message = "Accès refusé à cette commande."
-        elif isinstance(error, commands.ChannelNotFound):
-            error_message = "Salon introuvable."
-        elif isinstance(error, commands.CommandNotFound):
-            error_message = "Cette commande n'existe pas."
-        else:
-            error_message = f"Une erreur est survenue : {str(error)}"
-            logger.error(f"Erreur non gérée : {str(error)}")
-
-        if error_message:
-            await ErrorHandler.send_error_message(ctx, error_message)
+        """Gère les erreurs de commande de manière centralisée"""
+        if isinstance(error, commands.MissingPermissions):
+            embed = EmbedManager.create_embed(
+                title="❌ Permission refusée",
+                description="Vous n'avez pas les permissions nécessaires pour exécuter cette commande.",
+                color=discord.Color.red()
+            )
+            await ctx.send(embed=embed)
+            return True
+        
+        # Ajouter d'autres cas d'erreurs communs ici
+        
+        return False
 
     @staticmethod
     def _clean_error_cache():

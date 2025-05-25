@@ -3,6 +3,7 @@ from discord.ext import commands, tasks
 import os
 from datetime import datetime
 from ..commands.free_games import EpicGamesCog
+from utils.embed_manager import EmbedManager
 
 class EpicGamesEvents(commands.Cog):
     def __init__(self, bot):
@@ -52,11 +53,11 @@ class EpicGamesEvents(commands.Cog):
                 await channel.send(f"{role_mention} 🎮 **Nouveaux jeux gratuits !** 🎮")
                 
                 for game_id, title, url, image, end_date, description in new_games:
-                    embed = discord.Embed(
+                    embed = EmbedManager.create_embed(
                         title=title,
                         url=url,
-                        description=description,  # Utiliser la description du jeu
-                        color=0x00ff00
+                        description=description,
+                        color=discord.Color.green()  # Couleur verte spécifique pour les jeux gratuits
                     )
                     if image:
                         embed.set_image(url=image)

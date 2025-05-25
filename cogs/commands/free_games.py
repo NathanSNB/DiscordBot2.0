@@ -1,11 +1,17 @@
 import discord
+from discord.ext import commands
 import requests
-import asyncio
-import os
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+from bs4 import BeautifulSoup
+import logging
 import json
 from datetime import datetime
-from discord.ext import commands
-from bs4 import BeautifulSoup
+import os
+
+from utils.embed_manager import EmbedManager
+
+logger = logging.getLogger('bot')
 
 class EpicGamesCog(commands.Cog):
     """Cog pour gérer les commandes des jeux gratuits Epic Games"""
@@ -185,58 +191,90 @@ class EpicGamesCog(commands.Cog):
             return [], []  # Retourne des listes vides en cas d'erreur
 
     def get_steam_free_games(self):
+        """Récupère les jeux gratuits sur Steam en utilisant l'API officielle"""
         try:
+            # Headers pour simuler un navigateur web
             headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Language': 'fr,fr-FR;q=0.8,en-US;q=0.5,en;q=0.3'
             }
+
+            # Utiliser l'API de recherche Steam
+            search_url = "https://store.steampowered.com/api/featuredcategories"
             
-            response = requests.get(self.steam_url, headers=headers, timeout=10)
-            if response.status_code != 200:
-                print(f"Erreur HTTP {response.status_code} lors de la requête vers Steam")
-                return [], []
-            
-            soup = BeautifulSoup(response.text, 'html.parser')
-            free_games = []
-            game_ids = []
-            
-            # Chercher la table des jeux gratuits
-            table = soup.find('table', {'class': 'table-products'})
-            if not table:
-                return [], []
-                
-            for row in table.find_all('tr', {'class': 'app'}):
-                try:
-                    app_id = row.get('data-appid')
-                    if not app_id:
-                        continue
-                        
-                    name_cell = row.find('td', {'class': 'appname'})
-                    if not name_cell:
-                        continue
-                        
-                    title = name_cell.text.strip()
-                    url = f"https://store.steampowered.com/app/{app_id}"
-                    image = f"https://cdn.cloudflare.steamstatic.com/steam/apps/{app_id}/header.jpg"
-                    
-                    # Récupérer la date de fin
-                    time_cell = row.find('td', class_='timeago')
-                    end_date = time_cell.get('title') if time_cell else None
-                    
-                    free_games.append((app_id, title, url, image, end_date))
-                    game_ids.append(app_id)
-                    
-                except Exception as e:
-                    print(f"Erreur lors du traitement d'un jeu Steam: {e}")
-                    continue
-                   
-            return free_games, game_ids
-            
-        except Exception as e:
-            print(f"Erreur lors de la récupération des jeux Steam gratuits: {e}")
+            session = requests.Session()
+            retries = Retry(total=3, backoff_factor=0.5)
+            session.mount('https://', HTTPAdapter(max_retries=retries))
+
+            response = session.get(search_url, headers=headers, timeout=15)
+            response.raise_for_status()
+
+            if response.status_code == 200:
+                data = response.json()
+                free_games = []
+                game_ids = []
+
+                # Parcourir les différentes catégories
+                for category in data.values():
+                    if isinstance(category, dict) and 'items' in category:
+                        for item in category['items']:
+                            try:
+                                # Vérifier si le jeu est gratuit
+                                if item.get('is_free') or (item.get('price') and item['price'].get('final') == 0):
+                                    app_id = str(item['id'])
+                                    title = item.get('name', 'Jeu sans titre')
+                                    url = f"https://store.steampowered.com/app/{app_id}"
+                                    image = item.get('header_image') or f"https://cdn.cloudflare.steamstatic.com/steam/apps/{app_id}/header.jpg"
+
+                                    # Obtenir plus de détails sur le jeu
+                                    details_url = f"https://store.steampowered.com/api/appdetails?appids={app_id}&cc=fr"
+                                    details_response = session.get(details_url, headers=headers)
+                                    
+                                    end_date = None
+                                    if details_response.status_code == 200:
+                                        details = details_response.json()
+                                        if details and details.get(app_id, {}).get('success'):
+                                            data = details[app_id]['data']
+                                            if data.get('price_overview', {}).get('final_formatted') == "Gratuit":
+                                                # Vérifier si c'est une offre limitée dans le temps
+                                                if data.get('release_date', {}).get('coming_soon'):
+                                                    end_date = data['release_date'].get('date')
+
+                                    if not end_date:
+                                        # Alternative : chercher sur la page du magasin
+                                        store_page = session.get(url, headers=headers)
+                                        if store_page.status_code == 200:
+                                            soup = BeautifulSoup(store_page.text, 'html.parser')
+                                            promo_div = soup.find('div', {'class': 'game_purchase_discount_countdown'})
+                                            if promo_div:
+                                                end_date = promo_div.text.strip()
+
+                                    free_games.append((app_id, title, url, image, end_date))
+                                    game_ids.append(app_id)
+                                    
+                            except Exception as e:
+                                logger.error(f"❌ Erreur lors du traitement du jeu Steam {item.get('name', 'inconnu')}: {e}")
+                                continue
+
+                return free_games, game_ids
+
+            logger.error(f"❌ Erreur HTTP {response.status_code} lors de la requête vers Steam")
             return [], []
 
-    @commands.command(name="epicgames")
+        except requests.exceptions.RequestException as e:
+            logger.error(f"❌ Erreur lors de la requête Steam: {str(e)}")
+            return [], []
+        except Exception as e:
+            logger.error(f"❌ Erreur inattendue lors de la récupération des jeux Steam: {str(e)}")
+            return [], []
+
+    @commands.command(
+        name="epicgames",
+        help="Affiche les jeux gratuits Epic Games",
+        description="Affiche les jeux gratuits disponibles actuellement sur Epic Games Store",
+        usage="!epicgames"
+    )
     async def epicgames_command(self, ctx):
         """Affiche les jeux gratuits disponibles actuellement sur Epic Games Store"""
         try:
@@ -249,11 +287,11 @@ class EpicGamesCog(commands.Cog):
             await ctx.send(f"{role_mention} 🎮 **Nouveaux jeux gratuits !** 🎮")
             
             for _, title, url, image, end_date, description in games:
-                embed = discord.Embed(
+                embed = EmbedManager.create_embed(
                     title=title,
                     url=url,
                     description=description,  # Utiliser la description du jeu
-                    color=0x00ff00
+                    color=discord.Color.green()  # Couleur spécifique pour les jeux gratuits
                 )
                 if image:
                     embed.set_image(url=image)
@@ -271,7 +309,12 @@ class EpicGamesCog(commands.Cog):
         except Exception as e:
             await ctx.send(f"Une erreur s'est produite lors de la récupération des jeux gratuits: {str(e)}")
 
-    @commands.command(name="steamgames")
+    @commands.command(
+        name="steamgames",
+        help="Affiche les jeux gratuits sur Steam",
+        description="Affiche les jeux gratuits temporaires disponibles sur Steam",
+        usage="!steamgames"
+    )
     async def steamgames_command(self, ctx):
         """Affiche les jeux gratuits temporaires sur Steam"""
         try:
@@ -294,7 +337,12 @@ class EpicGamesCog(commands.Cog):
         except Exception as e:
             await ctx.send(f"Une erreur s'est produite lors de la récupération des jeux Steam: {str(e)}")
 
-    @commands.command(name="resetcache")
+    @commands.command(
+        name="resetcache",
+        help="Réinitialise le cache des jeux",
+        description="Réinitialise le cache des jeux annoncés (admin uniquement)",
+        usage="!resetcache"
+    )
     @commands.has_permissions(administrator=True)
     async def reset_cache(self, ctx):
         """Réinitialise le cache des jeux annoncés (admin uniquement)"""

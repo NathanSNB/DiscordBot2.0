@@ -10,9 +10,9 @@ import logging
 from datetime import datetime
 import pytz  # Pour gérer les fuseaux horaires
 import re
+import json
+from utils.embed_manager import EmbedManager
 
-# Chargement des variables d'environnement
-load_dotenv()
 logger = logging.getLogger('bot')
 
 # Bouton de rafraîchissement personnalisé
@@ -42,22 +42,53 @@ class RefreshButton(ui.Button):
 class MCStatusTracker(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.SERVER_IP = os.getenv('MINECRAFT_SERVER_IP', 'localhost')
-        self.PORT = int(os.getenv('MINECRAFT_SERVER_PORT', 25565))
-        self.STATUS_CHANNEL_ID = int(os.getenv('STATUS_CHANNEL_ID', 0))
-        self.NOTIFICATION_ROLE_ID = int(os.getenv('NOTIFICATION_ROLE_ID', 0))
+        # Centraliser la configuration
+        self.load_config()
         self.status_message = None
         self.previous_player_count = 0
-        self.previous_player_list = []  # Liste des joueurs précédemment connectés
-        self.previous_server_status = None  # None = inconnu, True = en ligne, False = hors ligne
-        self.error_messages = []  # Liste pour stocker les messages d'erreur
-        self.previous_latency = 0  # Pour détecter les pics de latence
-        self.high_latency_threshold = 200  # Seuil de latence haute (ms)
-        self.critical_latency_threshold = 500  # Seuil de latence critique (ms)
+        self.previous_player_list = []
+        self.previous_server_status = None
+        self.error_messages = []
+        self.player_notify_messages = []
+        self.previous_latency = 0  
+        self.high_latency_threshold = 200
+        self.critical_latency_threshold = 500
+        
+        # Ajout d'un compteur pour les mises à jour horaires
+        self.hourly_update_counter = 0
         
         # Créer une tâche asynchrone pour le suivi du serveur
         self.server_tracker = None
         bot.loop.create_task(self.initialize_status_message())
+        
+    def load_config(self):
+        """Charge la configuration depuis le JSON"""
+        try:
+            with open('data/user_preferences.json', 'r', encoding='utf-8') as f:
+                config = json.load(f)
+                mc_config = config.get('minecraft', {})
+                self.SERVER_IP = mc_config.get('server', {}).get('ip', 'localhost')
+                self.PORT = int(mc_config.get('server', {}).get('port', '25565'))
+                self.STATUS_CHANNEL_ID = int(mc_config.get('discord', {}).get('statusChannelId', '0'))
+                self.NOTIFICATION_ROLE_ID = int(mc_config.get('discord', {}).get('notificationRoleId', '0'))
+        except Exception as e:
+            logger.error(f"❌ Erreur lors du chargement de la configuration: {e}")
+            self.SERVER_IP = 'localhost'
+            self.PORT = 25565
+            self.STATUS_CHANNEL_ID = 0 
+            self.NOTIFICATION_ROLE_ID = 0
+            
+    def reload_config(self):
+        """Recharge la configuration et replace le message de statut dans le bon salon si besoin"""
+        old_channel_id = self.STATUS_CHANNEL_ID
+        self.load_config()
+        # Si le salon a changé, réinitialiser le message de statut dans le bon salon
+        if old_channel_id != self.STATUS_CHANNEL_ID:
+            self.status_message = None
+            self.bot.loop.create_task(self.find_or_create_status_message())
+        else:
+            # Toujours s'assurer que le message est dans le bon salon
+            self.bot.loop.create_task(self.find_or_create_status_message())
     
     def get_paris_time(self):
         """Renvoie l'heure actuelle dans le fuseau horaire de Paris, arrondie à la minute"""
@@ -74,55 +105,75 @@ class MCStatusTracker(commands.Cog):
         self.server_tracker = self.bot.loop.create_task(self.track_server_status())
     
     async def find_or_create_status_message(self):
-        """Cherche un message de statut existant ou en crée un nouveau"""
+        """Cherche un message de statut existant ou en crée un nouveau dans le salon configuré"""
+        # Toujours recharger la config pour être sûr d'avoir le bon salon
+        self.load_config()
         channel = self.bot.get_channel(self.STATUS_CHANNEL_ID)
         if not channel:
             logger.error(f"❌ Canal de statut introuvable (ID: {self.STATUS_CHANNEL_ID})")
             return
-        
-        # Chercher les messages du bot dans le canal
+
+        # Nettoyer tous les anciens messages de statut dans tous les salons où le bot a accès
+        # (pour éviter d'avoir plusieurs messages de statut dans plusieurs salons)
+        for guild in self.bot.guilds:
+            for ch in guild.text_channels:
+                try:
+                    async for message in ch.history(limit=50):
+                        if message.author == self.bot.user and message.embeds and message.embeds[0].title.startswith("📊 Statut du serveur Minecraft"):
+                            if ch.id != self.STATUS_CHANNEL_ID or self.status_message is None:
+                                try:
+                                    await message.delete()
+                                    await asyncio.sleep(0.2)
+                                except Exception:
+                                    pass
+                            else:
+                                self.status_message = message
+                except Exception:
+                    continue
+
+        # Chercher les messages du bot dans le salon cible
         bot_messages = []
         async for message in channel.history(limit=50):
-            if message.author == self.bot.user:
+            if message.author == self.bot.user and message.embeds and message.embeds[0].title.startswith("📊 Statut du serveur Minecraft"):
                 bot_messages.append(message)
-        
+
         # Supprimer tous les messages du bot dans le canal sauf le plus récent
         if bot_messages:
             for i, message in enumerate(bot_messages):
                 if i > 0:  # Garder le premier message (le plus récent)
                     try:
                         await message.delete()
-                        await asyncio.sleep(0.5)  # Éviter le rate limiting
+                        await asyncio.sleep(0.2)
                     except Exception as e:
                         logger.error(f"Erreur lors de la suppression d'un message: {e}")
-            
+
             # Utiliser le message le plus récent comme message de statut
             self.status_message = bot_messages[0]
-            logger.info(f"✅ Message de statut existant trouvé (ID: {self.status_message.id})")
-            
+            logger.info(f"✅ Message de statut existant trouvé (ID: {self.status_message.id}) dans le salon {channel.id}")
+
             # Ajouter le bouton de rafraîchissement
             view = ui.View()
             view.add_item(RefreshButton(self))
             view.timeout = None
-            
+
             # Mise à jour initiale
             current_status, embed, player_count, current_player_list = await self.get_status_embed()
             await self.status_message.edit(embed=embed, view=view)
         else:
             # Créer un nouveau message si aucun n'existe
-            embed = discord.Embed(
+            embed = EmbedManager.create_embed(
                 title="📊 Statut du serveur Minecraft",
                 description="🔄 **Initialisation du statut...**\nVeuillez patienter pendant que je vérifie le serveur.",
-                color=discord.Color.blue()
+                color=discord.Color.blue()  # Couleur spécifique pour le statut
             )
-            
+
             # Ajouter le bouton de rafraîchissement
             view = ui.View()
             view.add_item(RefreshButton(self))
             view.timeout = None
-            
+
             self.status_message = await channel.send(embed=embed, view=view)
-            logger.info(f"✅ Nouveau message de statut créé (ID: {self.status_message.id})")
+            logger.info(f"✅ Nouveau message de statut créé (ID: {self.status_message.id}) dans le salon {channel.id}")
     
     async def track_server_status(self):
         """Suit le statut du serveur en continu"""
@@ -155,10 +206,19 @@ class MCStatusTracker(commands.Cog):
                 # Déterminer s'il faut mettre à jour le message
                 state_changed = current_status != self.previous_server_status
                 new_players = self.detect_new_players(current_player_list)
+                left_players = self.detect_left_players(current_player_list)
                 players_changed = len(current_player_list) != len(self.previous_player_list)
                 
-                # Vérification de pic de latence
+                # Mettre à jour le compteur pour les mises à jour horaires (60 itérations * 60 secondes = 1 heure)
+                self.hourly_update_counter += 1
+                hourly_update = self.hourly_update_counter >= 60
+                if hourly_update:
+                    self.hourly_update_counter = 0
+                
+                # Vérification de latence
                 latency_spike = False
+                current_latency = 0
+                
                 if hasattr(embed, 'fields'):
                     for field in embed.fields:
                         if field.name == "📶 Latence":
@@ -166,35 +226,67 @@ class MCStatusTracker(commands.Cog):
                             match = re.search(r'(\d+(\.\d+)?)', field.value)
                             if match:
                                 current_latency = float(match.group(1))
-                                # Détecter si c'est un pic de latence
+                                # Détecter si c'est un pic de latence ou changement significatif
                                 if self.previous_latency > 0:
-                                    latency_increase = current_latency - self.previous_latency
-                                    if (latency_increase > 100) or (current_latency > self.critical_latency_threshold):
-                                        latency_spike = True
-                                        logger.warning(f"⚠️ Pic de latence détecté: {self.previous_latency}ms → {current_latency}ms")
+                                    latency_change = abs(current_latency - self.previous_latency)
+                                    
+                                    # Critères de déclenchement de mise à jour pour la latence:
+                                    latency_spike = (
+                                        (latency_change > 100) or 
+                                        (self.previous_latency > 100 and latency_change / self.previous_latency > 0.3) or
+                                        (current_latency > self.critical_latency_threshold)
+                                    )
+                                    
+                                    if latency_spike:
+                                        logger.warning(f"⚠️ Changement de latence important: {self.previous_latency}ms → {current_latency}ms")
                                 
                                 # Mettre à jour la latence précédente
                                 self.previous_latency = current_latency
                 
-                # Ne mettre à jour le message que s'il y a un changement d'état, de joueurs ou un pic de latence
-                if state_changed or new_players or players_changed or latency_spike:
+                # Mettre à jour le message si :
+                # - l'état du serveur a changé
+                # - un joueur a rejoint ou quitté
+                # - il y a un pic de latence
+                # - c'est l'heure de la mise à jour périodique (toutes les heures)
+                player_activity = new_players or left_players or players_changed
+                update_needed = state_changed or player_activity or latency_spike or hourly_update
+                
+                if update_needed:
                     # Notifier des changements d'état
                     if state_changed:
                         await self.notify_status_change(channel, current_status)
                     
-                    # Notifier des nouveaux joueurs
+                    # Notifier des nouveaux joueurs avec des popups éphémères
                     if new_players and current_status:
                         await self.notify_new_players(channel, new_players, player_count)
+                        logger.info(f"👋 Joueurs connectés: {', '.join(new_players)} - Mise à jour du statut")
+                        
+                    # Notifier des joueurs déconnectés avec des popups éphémères
+                    if left_players and current_status:
+                        await self.notify_left_players(channel, left_players, player_count)
+                        logger.info(f"👋 Joueurs déconnectés: {', '.join(left_players)} - Mise à jour du statut")
                     
-                    # Vérifier que le message existe toujours
+                    # Garantir que le message de statut principal est toujours à jour
                     try:
                         # Ajouter le bouton de rafraîchissement
                         view = ui.View()
                         view.add_item(RefreshButton(self))
                         view.timeout = None
                         
-                        # Essayer de récupérer le message pour voir s'il existe toujours
+                        # Mettre à jour l'embed pour refléter les nouveaux joueurs et ceux qui sont partis
+                        if player_activity:
+                            # Mettre à jour l'embed pour refléter le changement de joueurs
+                            current_status, embed, player_count, current_player_list = await self.get_status_embed()
+                        
+                        # Essayer de mettre à jour le message existant
                         await self.status_message.edit(embed=embed, view=view)
+                        
+                        # Journalisation des mises à jour
+                        if player_activity:
+                            logger.info("✅ Message de statut mis à jour avec les changements de joueurs")
+                        elif hourly_update:
+                            logger.info("⏱️ Mise à jour horaire du statut effectuée")
+                            
                     except discord.NotFound:
                         # Le message a été supprimé, en créer un nouveau
                         logger.warning("⚠️ Message de statut non trouvé, création d'un nouveau message")
@@ -222,8 +314,8 @@ class MCStatusTracker(commands.Cog):
                 self.previous_player_count = player_count
                 self.previous_player_list = current_player_list
                 
-                # Réduire l'intervalle de vérification en cas de latence élevée
-                check_interval = 30 if latency_spike else 60
+                # Réduire l'intervalle de vérification si joueurs changent fréquemment
+                check_interval = 15 if player_activity else (30 if latency_spike else 60)
                 await asyncio.sleep(check_interval)
                 
         except Exception as e:
@@ -241,6 +333,14 @@ class MCStatusTracker(commands.Cog):
             if player not in self.previous_player_list:
                 new_players.append(player)
         return new_players
+    
+    def detect_left_players(self, current_player_list):
+        """Détecte les joueurs qui se sont déconnectés"""
+        left_players = []
+        for player in self.previous_player_list:
+            if player not in current_player_list:
+                left_players.append(player)
+        return left_players
     
     async def notify_new_players(self, channel, new_players, total_players):
         """Notifie lorsque de nouveaux joueurs rejoignent le serveur"""
@@ -271,7 +371,60 @@ class MCStatusTracker(commands.Cog):
             embed.set_footer(text=f"Connecté(s) à {self.get_paris_time()} (heure de Paris)")
             
             # Envoyer l'annonce
-            await channel.send(embed=embed)
+            msg = await channel.send(embed=embed)
+            self.player_notify_messages.append(msg.id)
+            
+            # Programmer la suppression du message après 2 minutes
+            await asyncio.sleep(60)  # 1 minutes
+            try:
+                await msg.delete()
+                # Supprimer l'ID du message de la liste des messages à nettoyer
+                if msg.id in self.player_notify_messages:
+                    self.player_notify_messages.remove(msg.id)
+            except (discord.NotFound, discord.Forbidden, discord.HTTPException):
+                pass  # Ignorer si le message a déjà été supprimé ou si on n'a pas les permissions
+
+    async def notify_left_players(self, channel, left_players, total_players):
+        """Notifie lorsque des joueurs quittent le serveur"""
+        if left_players:
+            # Création d'un embed pour l'annonce des joueurs déconnectés
+            embed = discord.Embed(
+                title="👋 Joueurs déconnectés",
+                description=f"Des joueurs ont quitté le serveur Minecraft.",
+                color=discord.Color.orange()
+            )
+            
+            # Listing des joueurs déconnectés
+            players_text = ", ".join(f"**{player}**" for player in left_players)
+            embed.add_field(
+                name="🚶‍♂️ Qui a quitté",
+                value=players_text,
+                inline=False
+            )
+            
+            # Information sur le nombre total de joueurs
+            embed.add_field(
+                name="👥 Total de joueurs",
+                value=f"**{total_players}** joueurs en ligne actuellement",
+                inline=False
+            )
+            
+            # Ajouter l'heure de déconnexion
+            embed.set_footer(text=f"Déconnecté(s) à {self.get_paris_time()} (heure de Paris)")
+            
+            # Envoyer l'annonce
+            msg = await channel.send(embed=embed)
+            self.player_notify_messages.append(msg.id)
+            
+            # Programmer la suppression du message après 2 minutes
+            await asyncio.sleep(120)  # 2 minutes
+            try:
+                await msg.delete()
+                # Supprimer l'ID du message de la liste des messages à nettoyer
+                if msg.id in self.player_notify_messages:
+                    self.player_notify_messages.remove(msg.id)
+            except (discord.NotFound, discord.Forbidden, discord.HTTPException):
+                pass  # Ignorer si le message a déjà été supprimé ou si on n'a pas les permissions
 
     async def clean_error_messages(self, channel):
         """Supprime les messages d'erreur précédents"""
@@ -288,6 +441,21 @@ class MCStatusTracker(commands.Cog):
             self.error_messages = []  # Réinitialiser la liste des messages d'erreur
         except Exception as e:
             logger.error(f"Erreur lors du nettoyage des messages: {e}")
+
+    async def clean_player_notify_messages(self, channel):
+        """Supprime les messages de notification de nouveaux joueurs"""
+        try:
+            for msg_id in self.player_notify_messages:
+                try:
+                    msg = await channel.fetch_message(msg_id)
+                    await msg.delete()
+                except discord.NotFound:
+                    pass
+                except Exception as e:
+                    logger.error(f"Erreur lors de la suppression d'une notif joueur: {e}")
+            self.player_notify_messages = []
+        except Exception as e:
+            logger.error(f"Erreur lors du nettoyage des notifs joueurs: {e}")
 
     async def notify_status_change(self, channel, current_status):
         """Notifie les changements d'état du serveur"""
@@ -313,6 +481,8 @@ class MCStatusTracker(commands.Cog):
                 # Envoyer la notification avec le rôle mentionné
                 status_msg = await channel.send(content=role_mention, embed=embed)
                 self.error_messages.append(status_msg.id)  # Pour pouvoir le supprimer plus tard si besoin
+                
+                # Ne pas supprimer les notifications d'état en ligne
             else:
                 # Le serveur est tombé hors ligne - créer un embed
                 embed = discord.Embed(
@@ -325,6 +495,8 @@ class MCStatusTracker(commands.Cog):
                 # Envoyer la notification avec le rôle mentionné
                 status_msg = await channel.send(content=role_mention, embed=embed)
                 self.error_messages.append(status_msg.id)
+                
+                # Ne pas supprimer les notifications de hors ligne
 
     def detect_server_type(self, version_name, motd=None):
         """Détecte le type de serveur à partir de la version et du motd"""
@@ -409,7 +581,7 @@ class MCStatusTracker(commands.Cog):
             embed = discord.Embed(
                 title="📊 Statut du serveur Minecraft",
                 description=f"**🟢 EN LIGNE**",
-                color=discord.Color.green()
+                color=EmbedManager.get_default_color()
             )
             
             # Informations sur la version avec le type de serveur
@@ -422,7 +594,7 @@ class MCStatusTracker(commands.Cog):
             # Informations principales dans les champs
             embed.add_field(
                 name="📡 Adresse",
-                value=f"`{self.SERVER_IP}`",
+                value=f"`{self.SERVER_IP}:{self.PORT}`",
                 inline=True
             )
             
@@ -488,7 +660,7 @@ class MCStatusTracker(commands.Cog):
             embed = discord.Embed(
                 title="📊 Statut du serveur Minecraft",
                 description="**🔴 HORS LIGNE**\n\nLe serveur n'est pas accessible actuellement.",
-                color=discord.Color.red()
+                color=discord.Color.red()  # Garder une couleur spécifique pour l'état hors ligne
             )
             
             # Ajouter l'adresse du serveur

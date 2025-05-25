@@ -1,51 +1,73 @@
 # utils/loader.py
 import os
 import logging
-import importlib.util
+import traceback
+import asyncio
+from pathlib import Path
+
 from config import Config
 
-logger = logging.getLogger('bot')
+logger = logging.getLogger("bot")
 
 async def load_cogs(bot):
     """
-    Charge tous les Cogs du bot en utilisant deux méthodes:
-    1. Les extensions configurées dans Config.EXTENSIONS
-    2. Certains cogs principaux importés directement
+    Charge tous les cogs du bot depuis les dossiers 'cogs/commands' et 'cogs/events'
     """
-    # Méthode 1: Chargement depuis Config.EXTENSIONS
-    if hasattr(Config, 'EXTENSIONS') and Config.EXTENSIONS:
-        for extension in Config.EXTENSIONS:
-            try:
-                await bot.load_extension(f"cogs.{extension}")
-                logger.info(f"✅ Cog chargé : {extension}")
-            except Exception as e:
-                logger.error(f"❌ Erreur de chargement {extension}: {e}")
+    # Liste de tous les cogs à charger (avec leur chemin relatif)
+    cog_folders = ["cogs/commands", "cogs/events"]
     
-    # Méthode 2: Chargement direct des cogs principaux
-    try:
-        # Importations directes si les modules existent
-        modules_to_import = ["commands_cog", "events_cog"]
-        loaded_modules = 0
+    logger.info(f"🔄 Chargement des modules...")
+    loaded = 0
+    failed = 0
+
+    # Charger les cogs restants
+    for folder in cog_folders:
+        if not os.path.exists(folder):
+            os.makedirs(folder, exist_ok=True)
+            logger.info(f"📁 Dossier {folder} créé")
         
-        for module_name in modules_to_import:
+        for filename in os.listdir(folder):
+            if filename.endswith(".py"):
+                module_path = f"{folder}/{filename}".replace("/", ".").replace(".py", "")
+                try:
+                    await bot.load_extension(module_path)
+                    logger.info(f"✅ Module chargé: {module_path}")
+                    loaded += 1
+                except Exception as e:
+                    logger.error(f"❌ Erreur lors du chargement du module {module_path}: {str(e)}")
+                    logger.error(traceback.format_exc())
+                    failed += 1
+    
+    # Afficher un résumé du chargement des modules
+    logger.info(f"📊 Résultat du chargement des modules: {loaded} réussis, {failed} échoués")
+    
+    # Vérification spécifique pour le module ColorCommands
+    has_color_commands = False
+    for cog_name, cog in bot.cogs.items():
+        if cog_name == "ColorCommands":
+            has_color_commands = True
+            logger.info("✅ Module ColorCommands correctement chargé")
+            break
+    
+    # Si ColorCommands n'est pas chargé, essayer de le charger spécifiquement
+    if not has_color_commands:
+        try:
+            # Tenter de charger directement depuis couleur.py
+            await bot.load_extension("cogs.commands.couleur")
+            logger.info("✅ Module ColorCommands chargé avec succès depuis cogs.commands.couleur")
+            has_color_commands = True
+        except Exception as e:
+            logger.error(f"❌ Erreur lors du chargement de ColorCommands depuis couleur.py: {str(e)}")
             try:
-                # Vérifier si le module existe avant de l'importer
-                spec = importlib.util.find_spec(module_name)
-                if spec:
-                    module = importlib.import_module(module_name)
-                    cog_class_name = ''.join(word.capitalize() for word in module_name.split('_'))
-                    if hasattr(module, cog_class_name):
-                        cog_class = getattr(module, cog_class_name)
-                        await bot.add_cog(cog_class(bot))
-                        loaded_modules += 1
-                        logger.info(f"✅ Cog principal chargé : {module_name}")
-            except Exception as e:
-                logger.error(f"❌ Erreur de chargement du cog principal {module_name}: {str(e)}")
-        
-        if loaded_modules > 0:
-            logger.info(f"🧩 {loaded_modules} cogs principaux chargés avec succès")
-    except Exception as e:
-        logger.error(f"❌ Erreur générale de chargement des cogs principaux : {str(e)}")
+                # Tenter avec color.py comme backup
+                await bot.load_extension("cogs.commands.color")
+                logger.info("✅ Module ColorCommands chargé avec succès depuis cogs.commands.color")
+                has_color_commands = True
+            except Exception as e2:
+                logger.error(f"❌ Erreur lors du chargement de ColorCommands depuis color.py: {str(e2)}")
+                logger.warning("⚠️ Module ColorCommands non chargé! Vérifiez les fichiers couleur.py et color.py")
+    
+    return loaded, failed
 
 async def reload_cogs(bot):
     """Recharge tous les cogs actifs du bot"""

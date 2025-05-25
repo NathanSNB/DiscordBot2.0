@@ -1,29 +1,102 @@
 import discord
+import json
+import os
+from typing import Optional
+import logging
 
 class EmbedManager:
-    @staticmethod
-    def create_embed(title, description=None, color=discord.Color(0x2BA3B3), fields=None, thumbnail=None, image=None):
-        """Crée un embed standard pour tous les cogs"""
+    """Gestionnaire d'embeds centralisé pour maintenir une apparence cohérente"""
+    
+    _default_color = None  # Cache de la couleur par défaut
+    
+    @classmethod
+    def get_default_color(cls) -> discord.Color:
+        """
+        Récupère la couleur par défaut pour les embeds
+        
+        Essaie de lire la couleur depuis le fichier de configuration,
+        sinon utilise la couleur par défaut du bot
+        """
+        if cls._default_color is not None:
+            return cls._default_color
+            
+        try:
+            if os.path.exists('data/bot_settings.json'):
+                with open('data/bot_settings.json', 'r', encoding='utf-8') as f:
+                    settings = json.load(f)
+                    if 'embed_color' in settings:
+                        cls._default_color = discord.Color(settings['embed_color'])
+                        return cls._default_color
+        except Exception as e:
+            # Log l'erreur pour débuggage
+            logging.getLogger("bot").error(f"Erreur lors de la lecture de la couleur: {e}")
+            pass
+            
+        # Couleur par défaut si impossible de lire le fichier
+        from config import Config
+        cls._default_color = discord.Color(Config.DEFAULT_COLOR)
+        return cls._default_color
+    
+    @classmethod
+    def reload_color(cls):
+        """Recharge la couleur depuis la configuration et déclenche l'événement de changement de couleur"""
+        try:
+            from config import Config
+            Config.initialize_colors()
+            
+            # Réinitialiser le cache de couleur
+            cls._default_color = None
+            
+            # Essayer de notifier les cogs du changement de couleur
+            import asyncio
+            
+            async def notify_color_change():
+                # Attendre un peu pour que tous les modules aient le temps de charger
+                await asyncio.sleep(1)
+                
+                # Récupérer le bot de la boucle courante
+                for task in asyncio.all_tasks():
+                    if hasattr(task, 'get_name') and 'Client._connect' in task.get_name():
+                        try:
+                            client = task.get_coro().cr_frame.f_locals.get('self')
+                            if client and hasattr(client, 'dispatch'):
+                                client.dispatch('color_change')
+                                logging.getLogger("bot").info("✅ Événement de changement de couleur envoyé")
+                                break
+                        except:
+                            pass
+                            
+            asyncio.create_task(notify_color_change())
+            
+            return Config.DEFAULT_COLOR
+        except:
+            # Fallback to default color if we can't import config
+            return 0x2BA3B3
+    
+    @classmethod
+    def create_embed(cls, title: str, description: Optional[str] = None, color: Optional[discord.Color] = None, **kwargs):
+        """
+        Crée un embed standardisé avec la couleur par défaut
+        
+        Args:
+            title: Titre de l'embed
+            description: Description de l'embed (optionnel)
+            color: Couleur personnalisée (si omise, utilise la couleur par défaut)
+            **kwargs: Arguments supplémentaires pour l'embed
+            
+        Returns:
+            discord.Embed: L'embed créé
+        """
+        if color is None:
+            color = cls.get_default_color()
+            
         embed = discord.Embed(
-            title=title, 
+            title=title,
             description=description,
-            color=color
+            color=color,
+            **kwargs
         )
         
-        if fields:
-            for field in fields:
-                embed.add_field(
-                    name=field['name'],
-                    value=field['value'],
-                    inline=field.get('inline', False)
-                )
-                
-        if thumbnail:
-            embed.set_thumbnail(url=thumbnail)
-            
-        if image:
-            embed.set_image(url=image)
-            
         return embed
 
     @staticmethod
@@ -35,7 +108,7 @@ class EmbedManager:
                 "Nous sommes enchantés de t'accueillir parmi nous !\n"
                 "Pour que ton intégration se passe au mieux, voici quelques étapes à suivre :"
             ),
-            color=discord.Color(0x2BA3B3)
+            color=EmbedManager.get_default_color()
         )
 
         # Étapes à suivre
@@ -77,7 +150,7 @@ class EmbedManager:
                 f"Bienvenue officiellement sur **{guild.name}** !\n"
                 f"Tu as maintenant accès à l'ensemble du serveur."
             ),
-            color=discord.Color.green()
+            color=EmbedManager.get_default_color()
         )
 
         # Ajout des informations sur les rôles
@@ -104,7 +177,7 @@ class EmbedManager:
         embed = discord.Embed(
             title="✅ Accès accordé !",
             description=f"Bienvenue officiellement sur {guild.name if guild else 'notre serveur'} !\nTu as maintenant accès à l'ensemble du serveur.",
-            color=discord.Color.green()
+            color=EmbedManager.get_default_color()
         )
 
         if roles_channel:

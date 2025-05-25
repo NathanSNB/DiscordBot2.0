@@ -1,6 +1,8 @@
 import discord
 from discord.ext import commands
 
+from utils.embed_manager import EmbedManager
+
 class ProfilePictureCog(commands.Cog):
     """Commandes pour afficher les photos de profil des utilisateurs"""
     
@@ -12,7 +14,12 @@ class ProfilePictureCog(commands.Cog):
     async def on_ready(self):
         print(f'Cog ProfilePicture connecté en tant que {self.bot.user}')
     
-    @commands.command()
+    @commands.command(
+        name="pic",
+        help="Affiche une photo de profil",
+        description="Affiche la photo de profil d'un utilisateur en haute résolution",
+        usage="[@utilisateur]"
+    )
     async def pic(self, ctx, member: discord.Member = None):
         """Affiche la photo de profil d'un utilisateur
         Usage: +pic [@membre]
@@ -29,9 +36,8 @@ class ProfilePictureCog(commands.Cog):
             avatar_url = member.avatar.url
         
         # Créer un embed pour afficher l'avatar
-        embed = discord.Embed(
-            title=f"Photo de profil de {member.display_name}", 
-            color=discord.Color.blue()
+        embed = EmbedManager.create_embed(
+            title=f"Photo de profil de {member.display_name}"
         )
         embed.set_image(url=avatar_url)
         embed.set_footer(text=f"ID: {member.id}")

@@ -7,6 +7,7 @@ import aiohttp
 import os
 from dotenv import load_dotenv
 from urllib.parse import urlparse
+from utils.embed_manager import EmbedManager
 from utils.error import ErrorHandler
 
 class Commandes_Webs(commands.Cog):
@@ -24,8 +25,10 @@ class Commandes_Webs(commands.Cog):
         """Gestion globale des erreurs"""
         await ErrorHandler.handle_command_error(ctx, error)
 
-    def create_embed(self, title, description=None, color=discord.Color(0x2BA3B3)):
+    def create_embed(self, title, description=None, color=None):
         """Crée un embed standard"""
+        if color is None:
+            color = EmbedManager.get_default_color()
         embed = discord.Embed(title=title, description=description, color=color)
         embed.set_footer(text="Bot Discord - Utilitaires Web")
         return embed
@@ -42,7 +45,7 @@ class Commandes_Webs(commands.Cog):
         name="shorten",
         help="Raccourcit une URL",
         description="Utilise l'API Bitly pour raccourcir une URL longue",
-        usage="!shorten <url>"
+        usage="<url>"
     )
     async def shorten_url(self, ctx, url: str):
         if not self.BITLY_API_KEY:
@@ -76,7 +79,7 @@ class Commandes_Webs(commands.Cog):
         name="qrcode",
         help="Génère un QR Code",
         description="Crée un QR Code à partir d'une URL",
-        usage="!qrcode <url>"
+        usage="<url>"
     )
     async def generate_qrcode(self, ctx, url: str):
         if not self.is_valid_url(url):
@@ -107,7 +110,7 @@ class Commandes_Webs(commands.Cog):
         name="scan",
         help="Analyse une URL",
         description="Vérifie si une URL est potentiellement malveillante via VirusTotal",
-        usage="!scan <url>"
+        usage="<url>"
     )
     async def scan_url(self, ctx, url: str):
         if not self.VIRUSTOTAL_API_KEY:

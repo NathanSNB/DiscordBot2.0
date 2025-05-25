@@ -5,6 +5,7 @@ import os
 import json
 from dotenv import load_dotenv
 import logging
+from utils.embed_manager import EmbedManager
 from utils.error import ErrorHandler
 
 # Charger les variables d'environnement
@@ -27,8 +28,10 @@ class Commandes_Urgence(commands.Cog):
         """Gestion globale des erreurs"""
         await ErrorHandler.handle_command_error(ctx, error)
 
-    def create_embed(self, title, description=None, color=discord.Color(0x2BA3B3)):
+    def create_embed(self, title, description=None, color=None):
         """Crée un embed standard pour les réponses"""
+        if color is None:
+            color = EmbedManager.get_default_color()
         embed = discord.Embed(title=title, description=description, color=color)
         embed.set_footer(text="Système d'Urgence - Hérésie")
         return embed

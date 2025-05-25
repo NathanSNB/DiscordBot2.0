@@ -5,6 +5,8 @@ import os
 from dotenv import load_dotenv
 import logging
 
+from utils.embed_manager import EmbedManager
+
 # Configuration
 load_dotenv()
 AUTHORIZED_USERS_CC = list(map(int, os.getenv("AUTHORIZED_USERS_CC", "").split(","))) if os.getenv("AUTHORIZED_USERS_CC") else []
@@ -37,13 +39,17 @@ class Commandes_Economie(commands.Cog):
         return ctx.author.id in AUTHORIZED_USERS_CC
 
     def create_embed(self, title, description=None):
-        return discord.Embed(
+        return EmbedManager.create_embed(
             title=title,
-            description=description,
-            color=discord.Color(0x2BA3B3)
+            description=description
         ).set_footer(text="Système de Crédits Sociaux")
 
-    @commands.command(name="cc")
+    @commands.command(
+        name="cc",
+        help="Liste des crédits sociaux",
+        description="Affiche les crédits de tous les utilisateurs enregistrés",
+        usage=""
+    )
     async def check_coins(self, ctx):
         """Affiche les crédits de tous les utilisateurs"""
         if not self.is_authorized(ctx):
@@ -63,7 +69,12 @@ class Commandes_Economie(commands.Cog):
             )
         await ctx.send(embed=embed)
 
-    @commands.command(name="add")
+    @commands.command(
+        name="add",
+        help="Ajoute des crédits",
+        description="Ajoute une quantité spécifiée de crédits à un utilisateur",
+        usage="<utilisateur> <montant>"
+    )
     async def add_coins(self, ctx, user: str, amount: int):
         """Ajoute des crédits à un utilisateur"""
         if not self.is_authorized(ctx):
@@ -77,7 +88,12 @@ class Commandes_Economie(commands.Cog):
         self.save_economy(economy)
         await ctx.send(f"✅ {amount} cc ajoutés à {user}. Nouveau solde: {economy[user]} cc")
 
-    @commands.command(name="remove")
+    @commands.command(
+        name="creditdel",
+        help="Retire des crédits",
+        description="Retire une quantité spécifiée de crédits à un utilisateur",
+        usage="<utilisateur> <montant>"
+    )
     async def remove_coins(self, ctx, user_name: str, amount: int):
         if not self.is_authorized(ctx):
             await ctx.send("❌ Accès refusé")
@@ -96,7 +112,12 @@ class Commandes_Economie(commands.Cog):
         )
         await ctx.send(embed=embed)
 
-    @commands.command(name="create")
+    @commands.command(
+        name="usercreate",
+        help="Crée un utilisateur",
+        description="Crée un nouvel utilisateur dans le système de crédits",
+        usage="<nom_utilisateur>"
+    )
     async def create_user(self, ctx, user: str):
         """Crée un nouvel utilisateur"""
         if not self.is_authorized(ctx):
@@ -111,10 +132,10 @@ class Commandes_Economie(commands.Cog):
         await ctx.send(f"✅ {user} créé avec 0 cc")
 
     @commands.command(
-        name="rename",
+        name="userrename",
         help="Renomme un utilisateur",
         description="Change le nom d'un utilisateur existant",
-        usage="!rename <ancien_nom> <nouveau_nom>"
+        usage="<ancien_nom> <nouveau_nom>"
     )
     async def rename_user(self, ctx, old_name: str, new_name: str):
         if not self.is_authorized(ctx):
@@ -141,7 +162,7 @@ class Commandes_Economie(commands.Cog):
         name="authorize",
         help="Autorise un utilisateur",
         description="Ajoute un utilisateur à la liste des utilisateurs autorisés",
-        usage="!authorize <user_id>"
+        usage="<user_id>"
     )
     @commands.has_permissions(administrator=True)
     async def authorize_user(self, ctx, user_id: int):

@@ -13,7 +13,12 @@ class WhitelistCog(commands.Cog):
             return
         raise error
 
-    @commands.command(name="wl")
+    @commands.command(
+        name="wl",
+        help="Attribue un niveau de permission",
+        description="Ajoute un niveau de permission (1, 2, 3 ou 5) à un utilisateur",
+        usage="<@utilisateur> <niveau>"
+    )
     @require_permission(5)  # Seul le niveau 5 peut gérer les permissions
     async def whitelist(self, ctx, user: discord.Member, level: int):
         """Ajoute un niveau de permission à un utilisateur"""
@@ -34,7 +39,12 @@ class WhitelistCog(commands.Cog):
         except Exception as e:
             await ctx.send(f"❌ Erreur lors de l'ajout des permissions: {str(e)}")
 
-    @commands.command(name="perms")
+    @commands.command(
+        name="perms",
+        help="Vérifie les permissions",
+        description="Affiche les permissions d'un utilisateur mentionné ou les vôtres",
+        usage="[@utilisateur]"
+    )
     async def check_perms(self, ctx, user: discord.Member = None):
         """Vérifie les permissions d'un utilisateur"""
         user = user or ctx.author

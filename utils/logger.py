@@ -1,41 +1,68 @@
 import logging
 import os
+import sys
 from datetime import datetime
-from config import Config
 
-def setup_logger():
-    """Configure le système de logging"""
-    logger = logging.getLogger("bot")
-    logger.setLevel(logging.INFO)
+# S'assurer que le dossier de logs existe
+os.makedirs("logs", exist_ok=True)
 
-    # Format du log
-    formatter = logging.Formatter(
-        "%(asctime)s | %(levelname)s | %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S"
-    )
+# Définir les formateurs pour les différents handlers
+CONSOLE_FORMAT = '%(asctime)s - %(levelname)s - %(name)s - %(message)s'
+FILE_FORMAT = '%(asctime)s - %(levelname)s - %(name)s - %(filename)s:%(lineno)d - %(message)s'
 
-    # Handler pour la console
-    console_handler = logging.StreamHandler()
-    console_handler.setFormatter(formatter)
+# Un dictionnaire pour suivre les loggers déjà configurés
+_configured_loggers = {}
+
+def setup_logger(name='bot', level=logging.INFO):
+    """
+    Configure et retourne un logger avec des handlers pour la console et les fichiers
+    en s'assurant que les handlers ne sont pas dupliqués.
+    """
+    # Si le logger a déjà été configuré, le retourner directement
+    if name in _configured_loggers:
+        return _configured_loggers[name]
+    
+    # Créer ou récupérer le logger
+    logger = logging.getLogger(name)
+    
+    # Éviter la propagation aux loggers parents pour éviter les doublons
+    logger.propagate = False
+    
+    # Définir le niveau de log
+    logger.setLevel(level)
+    
+    # Ne pas ajouter de handlers si le logger en a déjà
+    if logger.handlers:
+        _configured_loggers[name] = logger
+        return logger
+    
+    # Créer un handler pour la console
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setLevel(level)
+    console_formatter = logging.Formatter(CONSOLE_FORMAT)
+    console_handler.setFormatter(console_formatter)
+    
+    # Créer un handler pour les fichiers
+    log_filename = f"logs/{datetime.now().strftime('%Y-%m-%d')}.log"
+    file_handler = logging.FileHandler(log_filename, encoding='utf-8')
+    file_handler.setLevel(level)
+    file_formatter = logging.Formatter(FILE_FORMAT)
+    file_handler.setFormatter(file_formatter)
+    
+    # Ajouter les handlers au logger
     logger.addHandler(console_handler)
-
-    # Handler pour le fichier
-    log_file = os.path.join(
-        Config.LOGS_DIR,
-        f"bot_{datetime.now().strftime('%Y%m%d')}.log"
-    )
-    file_handler = logging.FileHandler(log_file, encoding='utf-8')
-    file_handler.setFormatter(formatter)
     logger.addHandler(file_handler)
-
+    
+    # Enregistrer le logger configuré
+    _configured_loggers[name] = logger
+    
     return logger
 
-# Dans n'importe quel fichier
-logger = logging.getLogger("bot")
-
-# Différents niveaux de log
-logger.debug("Message de debug")     # Détails techniques
-logger.info("Information normale")   # Information générale
-logger.warning("Avertissement")      # Problème potentiel
-logger.error("Erreur")              # Erreur importante
-logger.critical("Erreur critique")   # Erreur bloquante
+def get_logger(name='bot'):
+    """
+    Récupère un logger existant ou en crée un nouveau.
+    Cette fonction assure qu'aucun handler n'est ajouté en double.
+    """
+    if name in _configured_loggers:
+        return _configured_loggers[name]
+    return setup_logger(name)

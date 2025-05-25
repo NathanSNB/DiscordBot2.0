@@ -22,7 +22,6 @@ matplotlib>=3.10.1
 numpy>=2.0.2
 pillow>=11.0.0
 qrcode>=8.0.0
-beautifulsoup4==25.1.1
 
 # Gestion du temps et formats
 tzdata>=2024.1
@@ -48,6 +47,9 @@ frozenlist==1.5.0
 psutil>=7.0.0
 platformdirs>=4.3.7
 mcstatus>=10.0.0
+
+# Recherche Wikipédia
+wikipedia==1.4.0
 
 # Autres dépendances
 pytz

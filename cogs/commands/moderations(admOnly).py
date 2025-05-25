@@ -4,11 +4,13 @@ import asyncio
 from datetime import datetime, timedelta
 
 from utils import logger
+from utils.embed_manager import EmbedManager
 
 class Commandes_Moderations(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.warnings = {}  # Format: {user_id: [(timestamp, reason, author_id)]}
+        self.locked_channels = {}  # Pour les commandes lock/unlock
 
     @commands.Cog.listener()
     async def on_command_error(self, ctx, error):
@@ -19,15 +21,17 @@ class Commandes_Moderations(commands.Cog):
         elif isinstance(error, commands.ChannelNotFound):
             await ctx.send("❌ Salon non trouvé.")
 
-    def create_embed(self, title, description=None, color=discord.Color(0x2BA3B3)):
+    def create_embed(self, title, description=None, color=None):
         """Crée un embed standard"""
+        if color is None:
+            color = EmbedManager.get_default_color()
         return discord.Embed(title=title, description=description, color=color)
 
     @commands.command(
         name="kick",
         help="Exclure un membre du serveur",
         description="Permet d'exclure un membre du serveur avec une raison (optionnelle)",
-        usage="!kick <@membre> [raison]"
+        usage="<@membre> [raison]"
     )
     @commands.has_permissions(administrator=True)
     async def kick(self, ctx, member: discord.Member, *, reason=None):
@@ -41,7 +45,7 @@ class Commandes_Moderations(commands.Cog):
         name="ban",
         help="Bannir un membre du serveur",
         description="Permet de bannir définitivement un membre du serveur avec une raison optionnelle",
-        usage="!ban <@membre> [raison]"
+        usage="<@membre> [raison]"
     )
     @commands.has_permissions(administrator=True)
     async def ban(self, ctx, member: discord.Member, *, reason=None):
@@ -54,7 +58,7 @@ class Commandes_Moderations(commands.Cog):
         name="unban",
         help="Débannir un utilisateur",
         description="Permet de débannir un utilisateur via son ID Discord",
-        usage="!unban <ID>"
+        usage="<ID>"
     )
     @commands.has_permissions(administrator=True)
     async def unban(self, ctx, user_id: int):
@@ -72,7 +76,7 @@ class Commandes_Moderations(commands.Cog):
         name="clear",
         help="Supprimer des messages",
         description="Permet de supprimer un nombre spécifique de messages ou tous les messages du salon",
-        usage="!clear <nombre|all>"
+        usage="<nombre|all>"
     )
     @commands.has_permissions(administrator=True)
     async def clear(self, ctx, amount):
@@ -98,10 +102,10 @@ class Commandes_Moderations(commands.Cog):
             await ctx.send("❌ Veuillez spécifier un nombre valide ou 'all'.")
 
     @commands.command(
-        name="move",
+        name="moov", 
         help="Déplacer un membre",
         description="Permet de déplacer un membre d'un salon vocal vers un autre",
-        usage="!move <@membre> <#salon>"
+        usage="<@membre> <#salon>"
     )
     @commands.has_permissions(administrator=True)
     async def move(self, ctx, member: discord.Member, channel: discord.VoiceChannel):
@@ -121,7 +125,7 @@ class Commandes_Moderations(commands.Cog):
         name="mute",
         help="Rendre muet un membre",
         description="Empêche un membre de parler dans tous les salons avec une durée optionnelle en minutes",
-        usage="!mute <@membre> [durée_en_minutes]"
+        usage="<@membre> [durée_en_minutes]"
     )
     @commands.has_permissions(administrator=True)
     async def mute(self, ctx, member: discord.Member, duration: int = None):
@@ -164,7 +168,7 @@ class Commandes_Moderations(commands.Cog):
         name="unmute",
         help="Réactiver un membre muet",
         description="Permet à un membre de parler à nouveau dans tous les salons",
-        usage="!unmute <@membre>"
+        usage="<@membre>"
     )
     @commands.has_permissions(administrator=True)
     async def unmute(self, ctx, member: discord.Member):
@@ -195,7 +199,7 @@ class Commandes_Moderations(commands.Cog):
         name="warn",
         help="Avertir un membre",
         description="Donne un avertissement à un membre. 3 avertissements en 20 minutes = mute 1h",
-        usage="!warn <@membre> [raison]"
+        usage="<@membre> [raison]"
     )
     @commands.has_permissions(administrator=True)
     async def warn(self, ctx, member: discord.Member, *, reason=None):
@@ -275,13 +279,13 @@ class Commandes_Moderations(commands.Cog):
             await ctx.send(f"❌ Une erreur est survenue : {str(e)}")
 
     @commands.command(
-        name="warnings",
+        name="sanction",
         help="Voir les avertissements d'un membre",
         description="Affiche la liste des avertissements actifs d'un membre",
-        usage="!warnings <@membre>"
+        usage="<@membre>"
     )
     @commands.has_permissions(administrator=True)
-    async def warnings(self, ctx, member: discord.Member):
+    async def sanction(self, ctx, member: discord.Member):
         """Affiche les avertissements actifs d'un membre"""
         active_warnings = self.bot.warns_manager.get_warnings(member.id)
         
@@ -310,13 +314,13 @@ class Commandes_Moderations(commands.Cog):
         await ctx.send(embed=embed)
 
     @commands.command(
-        name="delwarn",
+        name="delsanction",
         help="Supprimer un avertissement",
         description="Permet de supprimer un avertissement d'un membre",
-        usage="!delwarn <@membre> <numéro_warn>"
+        usage="<@membre> <numéro_warn>"
     )
     @commands.has_permissions(administrator=True)
-    async def delwarn(self, ctx, member: discord.Member, warn_num: int):
+    async def delsanction(self, ctx, member: discord.Member, warn_num: int):
         """Supprime un avertissement d'un membre."""
         try:
             # Le numéro d'avertissement est donné en commençant par 1, donc on soustrait 1
@@ -338,6 +342,83 @@ class Commandes_Moderations(commands.Cog):
         except Exception as e:
             logger.error(f"Erreur lors de la suppression d'un avertissement: {e}")
             await ctx.send("❌ Une erreur est survenue lors de la suppression de l'avertissement.")
+
+    @commands.command(name="lock")
+    @commands.has_permissions(manage_channels=True)
+    async def lock(self, ctx, channel: discord.TextChannel = None, *, time: str = None):
+        """Verrouille un salon pour empêcher les membres d'envoyer des messages"""
+        channel = channel or ctx.channel
+        
+        # Vérifier si le salon est déjà verrouillé
+        if channel.id in self.locked_channels:
+            return await ctx.send("❌ Ce salon est déjà verrouillé!")
+
+        # Sauvegarder les permissions actuelles et verrouiller le salon
+        overwrites = channel.overwrites_for(ctx.guild.default_role)
+        old_send_messages = overwrites.send_messages
+        overwrites.send_messages = False
+        await channel.set_permissions(ctx.guild.default_role, overwrite=overwrites)
+        
+        duration = None
+        if time:
+            try:
+                # Convertir le temps spécifié en secondes
+                time_dict = {"s": 1, "m": 60, "h": 3600, "d": 86400}
+                time_unit = time[-1].lower()
+                if time_unit not in time_dict:
+                    return await ctx.send("❌ Format de temps invalide! Utilisez s (secondes), m (minutes), h (heures) ou d (jours).")
+                
+                time_val = int(time[:-1])
+                duration = time_val * time_dict[time_unit]
+                
+                # Ajout du verrouillage temporaire
+                self.locked_channels[channel.id] = {
+                    "old_permissions": old_send_messages,
+                    "guild_id": ctx.guild.id
+                }
+                
+                # Message de confirmation
+                await ctx.send(f"🔒 Le salon {channel.mention} a été verrouillé pendant {time}!")
+                
+                # Programmer le déverrouillage
+                await asyncio.sleep(duration)
+                
+                # Vérifier si le salon est toujours verrouillé (pourrait avoir été déverrouillé manuellement)
+                if channel.id in self.locked_channels:
+                    del self.locked_channels[channel.id]
+                    overwrites = channel.overwrites_for(ctx.guild.default_role)
+                    overwrites.send_messages = old_send_messages
+                    await channel.set_permissions(ctx.guild.default_role, overwrite=overwrites)
+                    await ctx.send(f"🔓 Le salon {channel.mention} a été déverrouillé automatiquement!")
+            except ValueError:
+                await ctx.send("❌ Format de temps invalide! Exemple: 30s, 5m, 2h, 1d")
+        else:
+            # Verrouillage permanent
+            await ctx.send(f"🔒 Le salon {channel.mention} a été verrouillé!")
+            
+        logger.info(f"Salon {channel.name} verrouillé par {ctx.author} pour {time if time else 'durée indéterminée'}")
+
+    @commands.command(name="unlock")
+    @commands.has_permissions(manage_channels=True)
+    async def unlock(self, ctx, channel: discord.TextChannel = None):
+        """Déverrouille un salon pour permettre aux membres d'envoyer à nouveau des messages"""
+        channel = channel or ctx.channel
+        
+        # Restaurer les permissions
+        overwrites = channel.overwrites_for(ctx.guild.default_role)
+        
+        # Restaurer l'ancienne permission si elle était sauvegardée
+        if channel.id in self.locked_channels:
+            old_send_messages = self.locked_channels[channel.id]["old_permissions"]
+            overwrites.send_messages = old_send_messages
+            del self.locked_channels[channel.id]
+        else:
+            # Si pas de sauvegarde, simplement activer l'envoi de messages
+            overwrites.send_messages = None
+            
+        await channel.set_permissions(ctx.guild.default_role, overwrite=overwrites)
+        await ctx.send(f"🔓 Le salon {channel.mention} a été déverrouillé!")
+        logger.info(f"Salon {channel.name} déverrouillé par {ctx.author}")
 
 async def setup(bot):
     await bot.add_cog(Commandes_Moderations(bot))

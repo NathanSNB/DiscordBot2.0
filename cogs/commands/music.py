@@ -3,6 +3,7 @@ from discord.ext import commands, tasks
 import yt_dlp as youtube_dl
 import asyncio
 import logging 
+from utils.embed_manager import EmbedManager
 
 logger = logging.getLogger('bot')  # Configuration du logger
 class Commandes_musicales(commands.Cog):
@@ -22,8 +23,10 @@ class Commandes_musicales(commands.Cog):
                 if len(voice_client.channel.members) == 1:  # Vérifie si seul le bot est présent
                     await voice_client.disconnect()
 
-    def create_embed(self, title, description=None, color=discord.Color(0x2BA3B3)):
+    def create_embed(self, title, description=None, color=None):
         """Crée un embed standard pour les réponses."""
+        if color is None:
+            color = EmbedManager.get_default_color()
         embed = discord.Embed(title=title, description=description, color=color)
         embed.set_footer(text="Bot de Musique")
         return embed

@@ -1,17 +1,23 @@
 import discord
 from discord.ext import commands
-from utils import logger
-from utils.error import ErrorHandler
-from utils.rules_manager import RulesManager
-from utils.embed_manager import EmbedManager
 import json
 import os
+import logging
+from utils.rules_manager import RulesManager
+from utils.embed_manager import EmbedManager
+
+logger = logging.getLogger("bot")
 
 class RulesCommands(commands.Cog):
+    """Commandes pour gérer le système de règlement du serveur"""
+    
     def __init__(self, bot):
         self.bot = bot
         self.rules_file = 'data/rules.json'
         self.config_file = 'data/rules_config.json'
+        self.rules_channel_id = None
+        self.rules_message_id = None
+        self.verified_role_id = None
         self.load_rules()
         self.load_config()
 
@@ -27,11 +33,12 @@ class RulesCommands(commands.Cog):
             else:
                 self.save_config()
         except Exception as e:
-            print(f"Erreur lors du chargement de la configuration: {e}")
+            logger.error(f"Erreur lors du chargement de la configuration: {e}")
 
     def save_config(self):
         """Sauvegarde la configuration"""
         try:
+            os.makedirs(os.path.dirname(self.config_file), exist_ok=True)
             with open(self.config_file, 'w', encoding='utf-8') as f:
                 json.dump({
                     'rules_channel_id': self.rules_channel_id,
@@ -39,7 +46,7 @@ class RulesCommands(commands.Cog):
                     'verified_role_id': self.verified_role_id
                 }, f, indent=4)
         except Exception as e:
-            print(f"Erreur lors de la sauvegarde de la configuration: {e}")
+            logger.error(f"Erreur lors de la sauvegarde de la configuration: {e}")
 
     def load_rules(self):
         """Charge les règles depuis le fichier JSON"""
@@ -50,7 +57,7 @@ class RulesCommands(commands.Cog):
             else:
                 self.rules_data = {}
         except Exception as e:
-            print(f"Erreur lors du chargement des règles: {e}")
+            logger.error(f"Erreur lors du chargement des règles: {e}")
 
     def save_rules(self):
         """Sauvegarde les règles dans le fichier JSON"""
@@ -59,18 +66,17 @@ class RulesCommands(commands.Cog):
             with open(self.rules_file, 'w', encoding='utf-8') as f:
                 json.dump(self.rules_data, f, indent=4, ensure_ascii=False)
         except Exception as e:
-            print(f"Erreur lors de la sauvegarde des règles: {e}")
+            logger.error(f"Erreur lors de la sauvegarde des règles: {e}")
 
     def format_rules_embed(self, guild):
         """Crée l'embed des règles"""
-        embed = discord.Embed(
+        embed = EmbedManager.create_embed(
             title="📜 Règlement du Serveur",
-            description=self.rules_data["welcome_message"].format(server_name=guild.name),
-            color=discord.Color(0x2BA3B3)
+            description=self.rules_data.get("welcome_message", "").format(server_name=guild.name)
         )
 
         # Ajouter les règles
-        for rule in self.rules_data["rules"]:
+        for rule in self.rules_data.get("rules", []):
             embed.add_field(
                 name=f"{rule['emoji']}・**{rule['title']}**",
                 value=rule['description'],
@@ -78,16 +84,17 @@ class RulesCommands(commands.Cog):
             )
 
         # Ajouter les sanctions
-        sanctions = self.rules_data["sanctions"]
-        sanctions_text = "\n".join(f"> {sanction}" for sanction in sanctions["content"])
-        embed.add_field(
-            name=f"{sanctions['emoji']}・**{sanctions['title']}**",
-            value=f"{sanctions_text}{sanctions['separator']}",
-            inline=False
-        )
+        sanctions = self.rules_data.get("sanctions", {})
+        if sanctions:
+            sanctions_text = "\n".join(f"> {sanction}" for sanction in sanctions.get("content", []))
+            embed.add_field(
+                name=f"{sanctions.get('emoji', '')}・**{sanctions.get('title', '')}**",
+                value=f"{sanctions_text}{sanctions.get('separator', '')}",
+                inline=False
+            )
 
         # Formater et ajouter le footer comme un champ séparé
-        formatted_footer = self.rules_data["footer"].format(server_name=guild.name)
+        formatted_footer = self.rules_data.get("footer", "").format(server_name=guild.name)
         embed.add_field(
             name="\u200b",  # Caractère invisible pour le nom du champ
             value=formatted_footer,
@@ -100,7 +107,7 @@ class RulesCommands(commands.Cog):
         name="setrules",
         help="Définit le salon des règles",
         description="Définit le salon où seront affichées les règles",
-        usage="!setrules #salon"
+        usage="#salon"
     )
     @commands.has_permissions(administrator=True)
     async def set_rules_channel(self, ctx, channel: discord.TextChannel):
@@ -128,7 +135,7 @@ class RulesCommands(commands.Cog):
                 except:
                     pass
         except Exception as e:
-            print(f"Erreur lors de la suppression de l'ancien message: {e}")
+            logger.error(f"Erreur lors de la suppression de l'ancien message: {e}")
 
         # Créer le nouvel embed
         embed = self.format_rules_embed(guild)
@@ -140,9 +147,9 @@ class RulesCommands(commands.Cog):
             await message.add_reaction("✅")
             self.save_config()
         except Exception as e:
-            print(f"Erreur lors de l'envoi du nouveau message: {e}")
+            logger.error(f"Erreur lors de l'envoi du nouveau message: {e}")
 
-    @commands.command(name="setrole")
+    @commands.command(name="setverifiedrole")
     @commands.has_permissions(administrator=True)
     async def set_verified_role(self, ctx, role: discord.Role):
         """Configure le rôle à attribuer après validation du règlement"""
@@ -179,7 +186,7 @@ class RulesCommands(commands.Cog):
                         pass
 
         except Exception as e:
-            print(f"Erreur lors de l'envoi du message de bienvenue : {str(e)}")
+            logger.error(f"Erreur lors de l'envoi du message de bienvenue : {str(e)}")
 
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload):
@@ -211,7 +218,7 @@ class RulesCommands(commands.Cog):
         name="updaterules",
         help="Met à jour les règles",
         description="Force la mise à jour du message des règles",
-        usage="!updaterules"
+        usage=""
     )
     @commands.has_permissions(administrator=True)
     async def update_rules_command(self, ctx):

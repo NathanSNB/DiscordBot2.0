@@ -8,6 +8,8 @@ from dotenv import load_dotenv
 from zoneinfo import ZoneInfo
 import pytz
 from datetime import datetime, timedelta
+from utils.embed_manager import EmbedManager
+from utils.custom_help import command_help
 
 # Configuration du logging
 logging.basicConfig(
@@ -24,15 +26,15 @@ load_dotenv()
 CONFIG_FILE = 'data/reminders.json'
 USER_PREFERENCES_FILE = 'data/user_preferences.json'
 DEFAULT_REMINDER_TIME = "22:00"
-EMBED_COLOR = 0x2BA3B3
+EMBED_COLOR = EmbedManager.get_default_color().value  # Utiliser la couleur définie par !setcolor
 FOOTER_TEXT = "Système de Rappels ｜ © 2025"
 TIMEZONE = "Europe/Paris"
 
-# Styles d'embeds pour les rappels
+# Styles d'embeds pour les rappels - conserver les couleurs spécifiques pour les différents styles
 REMINDER_STYLES = [
     {
         "title": "🌙 Il est temps de se reposer",
-        "color": 0x7B68EE,  # Violet moyen
+        "color": 0x7B68EE,  # Violet moyen - couleur sémantique spécifique
         "image": "https://i.imgur.com/2DrXEHX.png",  # Image de nuit étoilée
         "emoji": "🌠"
     },
@@ -65,7 +67,7 @@ REMINDER_QUOTES = [
     "Une bonne nuit de sommeil répare le corps et l'esprit."
 ]
 
-class BedtimeReminder(commands.Cog):
+class BedtimeReminder(commands.Cog, name="BedtimeReminder"):
     """Système de rappels personnalisés pour les utilisateurs Discord"""
 
     def __init__(self, bot):
@@ -203,20 +205,14 @@ class BedtimeReminder(commands.Cog):
     def create_embed(self, title, description=None, fields=None, color=None):
         """
         Crée un embed Discord standard pour les réponses de commandes
-        
-        Args:
-            title (str): Titre de l'embed
-            description (str, optional): Description de l'embed
-            fields (list, optional): Liste de tuples (name, value, inline) pour les champs
-            color (int, optional): Couleur personnalisée de l'embed
-            
-        Returns:
-            discord.Embed: L'embed formaté
         """
+        if color is None:
+            color = EmbedManager.get_default_color().value
+        
         embed = discord.Embed(
             title=title,
             description=description,
-            color=discord.Color(color if color else EMBED_COLOR),
+            color=discord.Color(color),
             timestamp=datetime.now()
         )
         
@@ -275,7 +271,13 @@ class BedtimeReminder(commands.Cog):
         await self.bot.wait_until_ready()
         logger.info("🔄 Démarrage de la boucle de vérification des rappels")
 
-    @commands.command(name="rappel_activer", aliases=["reminder_on", "activate_reminder"])
+    @command_help(
+        description="Active les rappels pour l'utilisateur",
+        usage="!remindon",
+        examples=["!remindon"],
+        permission_level=0
+    )
+    @commands.command(name="remindon", aliases=["reminder_on", "activate_reminder"])
     async def activate_reminder(self, ctx):
         """Active les rappels pour l'utilisateur"""
         user_id = str(ctx.author.id)
@@ -295,11 +297,17 @@ class BedtimeReminder(commands.Cog):
         
         embed = self.create_embed(
             "✅ Rappels Activés",
-            f"Vous recevrez désormais des rappels quotidiens à **{user_time}**.\n\nUtilisez `!rappel_heure HH:MM` pour modifier l'heure de rappel."
+            f"Vous recevrez désormais des rappels quotidiens à **{user_time}**.\n\nUtilisez `!remindtime HH:MM` pour modifier l'heure de rappel."
         )
         await ctx.send(embed=embed)
 
-    @commands.command(name="rappel_desactiver", aliases=["reminder_off", "deactivate_reminder"])
+    @command_help(
+        description="Désactive les rappels pour l'utilisateur",
+        usage="!remindoff",
+        examples=["!remindoff"],
+        permission_level=0
+    )
+    @commands.command(name="remindoff", aliases=["reminder_off", "deactivate_reminder"])
     async def deactivate_reminder(self, ctx):
         """Désactive les rappels pour l'utilisateur"""
         user_id = str(ctx.author.id)
@@ -317,11 +325,17 @@ class BedtimeReminder(commands.Cog):
         
         embed = self.create_embed(
             "🔕 Rappels Désactivés",
-            "Vous ne recevrez plus de rappels quotidiens.\n\nUtilisez `!rappel_activer` pour les réactiver."
+            "Vous ne recevrez plus de rappels quotidiens.\n\nUtilisez `!remindon` pour les réactiver."
         )
         await ctx.send(embed=embed)
 
-    @commands.command(name="rappel_heure", aliases=["reminder_time", "set_reminder_time"])
+    @command_help(
+        description="Modifie l'heure à laquelle l'utilisateur reçoit les rappels",
+        usage="!remindtime HH:MM",
+        examples=["!remindtime 22:30", "!remindtime 07:15"],
+        permission_level=0
+    )
+    @commands.command(name="remindtime", aliases=["reminder_time", "set_reminder_time"])
     async def set_reminder_time(self, ctx, new_time: str):
         """Modifie l'heure à laquelle l'utilisateur reçoit les rappels"""
         user_id = str(ctx.author.id)
@@ -387,7 +401,13 @@ class BedtimeReminder(commands.Cog):
                 "Format d'heure invalide. Utilisez le format `HH:MM` (ex: 22:00)."
             ))
 
-    @commands.command(name="rappel_test", aliases=["test_reminder"])
+    @command_help(
+        description="Envoie un rappel de test à l'utilisateur",
+        usage="!remindtest",
+        examples=["!remindtest"],
+        permission_level=0
+    )
+    @commands.command(name="remindtest", aliases=["test_reminder"])
     async def test_reminder(self, ctx):
         """Envoie un rappel de test à l'utilisateur"""
         if not self.messages:
@@ -418,6 +438,12 @@ class BedtimeReminder(commands.Cog):
                 "Vérifiez que vous avez activé la réception des messages privés sur ce serveur."
             ))
 
+    @command_help(
+        description="Affiche le statut des rappels pour l'utilisateur",
+        usage="!rappel_statut",
+        examples=["!rappel_statut", "!reminder_status"],
+        permission_level=0
+    )
     @commands.command(name="rappel_statut", aliases=["reminder_status", "reminder_info"])
     async def reminder_status(self, ctx):
         """Affiche le statut des rappels pour l'utilisateur"""
@@ -427,7 +453,7 @@ class BedtimeReminder(commands.Cog):
             await ctx.send(embed=self.create_embed(
                 "ℹ️ Statut des Rappels",
                 "Vous n'avez pas encore configuré de rappels.\n\n"
-                "Utilisez `!rappel_activer` pour commencer à recevoir des rappels."
+                "Utilisez `!remindon` pour commencer à recevoir des rappels."
             ))
             return
             
@@ -461,16 +487,22 @@ class BedtimeReminder(commands.Cog):
         
         embed.add_field(
             name="💡 Commandes utiles",
-            value="- `!rappel_test` pour recevoir un rappel de test\n"
+            value="- `!remindtest` pour recevoir un rappel de test\n"
                  f"- `!rappel_{'desactiver' if prefs.get('active', False) else 'activer'}` pour {('désactiver' if prefs.get('active', False) else 'activer')} les rappels\n"
-                 "- `!rappel_heure HH:MM` pour changer l'heure",
+                 "- `!remindtime HH:MM` pour changer l'heure",
             inline=False
         )
         
         await ctx.send(embed=embed)
 
-    @commands.command(name="rappel_ajouter", aliases=["add_reminder_message"])
+    @command_help(
+        description="Ajoute un message à la liste des rappels",
+        usage="!remindadd <message>",
+        examples=["!remindadd N'oublie pas de te reposer suffisamment"],
+        permission_level=5
+    )
     @commands.has_permissions(administrator=True)
+    @commands.command(name="remindadd", aliases=["add_reminder_message"])
     async def add_reminder_message(self, ctx, *, message: str):
         """Ajoute un message à la liste des rappels"""
         # Vérifier si le message existe déjà
@@ -489,14 +521,20 @@ class BedtimeReminder(commands.Cog):
             f"**Message ajouté à la liste des rappels:**\n{message}"
         ))
 
-    @commands.command(name="rappel_messages", aliases=["list_reminder_messages"])
+    @command_help(
+        description="Affiche tous les messages de rappel configurés",
+        usage="!remindlist",
+        examples=["!remindlist"],
+        permission_level=5
+    )
     @commands.has_permissions(administrator=True)
+    @commands.command(name="remindlist", aliases=["list_reminder_messages"])
     async def list_reminder_messages(self, ctx):
         """Affiche tous les messages de rappel configurés"""
         if not self.messages:
             await ctx.send(embed=self.create_embed(
                 "📝 Messages de Rappel",
-                "Aucun message configuré. Utilisez `!rappel_ajouter` pour en ajouter."
+                "Aucun message configuré. Utilisez `!remindadd` pour en ajouter."
             ))
             return
 
@@ -520,8 +558,14 @@ class BedtimeReminder(commands.Cog):
                 
             await ctx.send(embed=embed)
 
-    @commands.command(name="rappel_supprimer", aliases=["delete_reminder_message"])
+    @command_help(
+        description="Supprime un message de la liste des rappels",
+        usage="!reminddel <index>",
+        examples=["!reminddel 1"],
+        permission_level=5
+    )
     @commands.has_permissions(administrator=True)
+    @commands.command(name="reminddel", aliases=["delete_reminder_message"])
     async def delete_reminder_message(self, ctx, index: int):
         """Supprime un message de la liste des rappels"""
         if not self.messages:
@@ -552,8 +596,14 @@ class BedtimeReminder(commands.Cog):
                 f"Index invalide. Utilisez un nombre entre 1 et {len(self.messages)}."
             ))
 
-    @commands.command(name="rappel_utilisateurs", aliases=["list_reminder_users"])
+    @command_help(
+        description="Affiche tous les utilisateurs configurés pour recevoir des rappels",
+        usage="!remindusers",
+        examples=["!remindusers"],
+        permission_level=5
+    )
     @commands.has_permissions(administrator=True)
+    @commands.command(name="remindusers", aliases=["list_reminder_users"])
     async def list_reminder_users(self, ctx):
         """Affiche tous les utilisateurs configurés pour recevoir des rappels"""
         if not self.user_preferences:
