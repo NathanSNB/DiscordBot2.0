@@ -504,53 +504,51 @@ class MCStatusTracker(commands.Cog):
         version_lower = version_name.lower() if version_name else ""
         
         # Détection des types de serveur courants
-        version_lower = version_lower.lower()  # Assure que c'est en minuscule
-
-        if "fabric"or "Fabric" in version_lower:
+        if "fabric" in version_lower:
             return "🧵 Fabric"
-        elif "quilt"or "Quilt" in version_lower:
+        elif "quilt" in version_lower:
             return "🪡 Quilt (fork de Fabric)"
-        elif "forge" or "Forge"in version_lower or "fml" in version_lower:
-            return "🔨 Forge"
-        elif "neoforge"or "Neoforge" in version_lower:
+        elif "neoforge" in version_lower:
             return "🧱 NeoForge (fork de Forge)"
-        elif "paper"or "Paper" in version_lower:
+        elif "forge" in version_lower or "fml" in version_lower:
+            return "🔨 Forge"
+        elif "paper" in version_lower:
             return "📝 Paper"
-        elif "purpur"or "Purpur" in version_lower:
+        elif "purpur" in version_lower:
             return "🟣 Purpur (fork de Paper)"
-        elif "pufferfish"or "Pufferfish" in version_lower:
+        elif "pufferfish" in version_lower:
             return "🐡 Pufferfish (optimisé Paper)"
-        elif "airplane"or "Airplane" in version_lower:
+        elif "airplane" in version_lower:
             return "✈️ Airplane (fork de Paper)"
-        elif "spigot" or "Spigot" in version_lower:
+        elif "spigot" in version_lower:
             return "🔌 Spigot"
-        elif "taco" or "Taco"in version_lower:
+        elif "taco" in version_lower:
             return "🌮 TacoSpigot (optimisé Spigot)"
-        elif "bukkit" or "Bukkit"in version_lower:
+        elif "bukkit" in version_lower:
             return "🪣 Bukkit"
-        elif "sponge"or "Sponge" in version_lower:
+        elif "sponge" in version_lower:
             return "🧽 Sponge"
-        elif "mohist"or "Mohist" in version_lower:
+        elif "mohist" in version_lower:
             return "⚙️ Mohist (Forge + Bukkit)"
-        elif "catserver" or "Catserver" in version_lower:
+        elif "catserver" in version_lower:
             return "🐱 CatServer (Forge + Bukkit)"
-        elif "arclight"or "Arclight" in version_lower:
+        elif "arclight" in version_lower:
             return "💡 Arclight (Forge + Bukkit)"
-        elif "magma"or "Magma" in version_lower:
+        elif "magma" in version_lower:
             return "🔥 Magma (Forge + Bukkit)"
-        elif "vanilla"or "Vanilla" in version_lower:
+        elif "vanilla" in version_lower:
             return "🍦 Vanilla"
-        elif "cuberite"or "Cuberite" in version_lower:
+        elif "cuberite" in version_lower:
             return "🧊 Cuberite (C++ vanilla-like)"
-        elif "velocity"or "Velocity" in version_lower:
+        elif "velocity" in version_lower:
             return "⚡ Velocity (proxy)"
-        elif "waterfall"or "Waterfall" in version_lower:
+        elif "waterfall" in version_lower:
             return "💧 Waterfall (proxy)"
-        elif "travertine"or "Travertine" in version_lower:
+        elif "travertine" in version_lower:
             return "⛲ Travertine (proxy)"
-        elif "bungeecord"or "Bungeecord"  in version_lower or "bungee"or "Bungee"  in version_lower:
+        elif "bungeecord" in version_lower or "bungee" in version_lower:
             return "🔀 BungeeCord (proxy)"
-        elif "modded" in version_lower or "mod"or "Mod"or "Modded" in version_lower:
+        elif "modded" in version_lower or "mod" in version_lower:
             return "🔧 Modded"
         else:
             return "❔ Inconnu ou Vanilla"
