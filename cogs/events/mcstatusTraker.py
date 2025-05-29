@@ -500,58 +500,80 @@ class MCStatusTracker(commands.Cog):
 
     def detect_server_type(self, version_name, motd=None):
         """Détecte le type de serveur à partir de la version et du motd"""
-        # Détection basée sur le nom de version
-        version_lower = version_name.lower() if version_name else ""
+        # Initialiser les résultats de détection
+        server_type = "❔ Inconnu ou Vanilla"
         
-        # Détection des types de serveur courants
-        if "fabric" in version_lower:
-            return "🧵 Fabric"
-        elif "quilt" in version_lower:
-            return "🪡 Quilt (fork de Fabric)"
-        elif "neoforge" in version_lower:
-            return "🧱 NeoForge (fork de Forge)"
-        elif "forge" in version_lower or "fml" in version_lower:
-            return "🔨 Forge"
-        elif "paper" in version_lower:
-            return "📝 Paper"
-        elif "purpur" in version_lower:
-            return "🟣 Purpur (fork de Paper)"
-        elif "pufferfish" in version_lower:
-            return "🐡 Pufferfish (optimisé Paper)"
-        elif "airplane" in version_lower:
-            return "✈️ Airplane (fork de Paper)"
-        elif "spigot" in version_lower:
-            return "🔌 Spigot"
-        elif "taco" in version_lower:
-            return "🌮 TacoSpigot (optimisé Spigot)"
-        elif "bukkit" in version_lower:
-            return "🪣 Bukkit"
-        elif "sponge" in version_lower:
-            return "🧽 Sponge"
-        elif "mohist" in version_lower:
-            return "⚙️ Mohist (Forge + Bukkit)"
-        elif "catserver" in version_lower:
-            return "🐱 CatServer (Forge + Bukkit)"
-        elif "arclight" in version_lower:
-            return "💡 Arclight (Forge + Bukkit)"
-        elif "magma" in version_lower:
-            return "🔥 Magma (Forge + Bukkit)"
-        elif "vanilla" in version_lower:
-            return "🍦 Vanilla"
-        elif "cuberite" in version_lower:
-            return "🧊 Cuberite (C++ vanilla-like)"
-        elif "velocity" in version_lower:
-            return "⚡ Velocity (proxy)"
-        elif "waterfall" in version_lower:
-            return "💧 Waterfall (proxy)"
-        elif "travertine" in version_lower:
-            return "⛲ Travertine (proxy)"
-        elif "bungeecord" in version_lower or "bungee" in version_lower:
-            return "🔀 BungeeCord (proxy)"
-        elif "modded" in version_lower or "mod" in version_lower:
-            return "🔧 Modded"
-        else:
-            return "❔ Inconnu ou Vanilla"
+        # Convertir en minuscules pour faciliter la détection
+        version_lower = version_name.lower() if version_name else ""
+        motd_text = ""
+        
+        # Extraire le texte du MOTD s'il existe
+        if motd:
+            if hasattr(motd, 'text'):
+                motd_text = motd.text.lower()
+            elif hasattr(motd, 'raw'):
+                motd_text = motd.raw.lower()
+            elif hasattr(motd, 'extra'):
+                # Pour les MOTD avec composants "extra"
+                motd_text = "".join(comp.get('text', '') for comp in motd.extra).lower()
+            elif isinstance(motd, str):
+                motd_text = motd.lower()
+            elif isinstance(motd, dict):
+                # Pour les MOTD au format JSON
+                motd_text = json.dumps(motd).lower()
+        
+        # Combiner les deux sources pour la détection
+        combined_text = f"{version_lower} {motd_text}"
+        
+        # Détection des types de serveur courants basée sur le texte combiné
+        if "fabric" in combined_text:
+            server_type = "🧵 Fabric"
+        elif "quilt" in combined_text:
+            server_type = "🪡 Quilt"
+        elif "neoforge" in combined_text:
+            server_type = ":fox: NeoForge"
+        elif "forge" in combined_text or "fml" in combined_text:
+            server_type = "🔨 Forge"
+        elif "paper" in combined_text:
+            server_type = "📝 Paper"
+        elif "purpur" in combined_text:
+            server_type = "🟣 Purpur"
+        elif "pufferfish" in combined_text:
+            server_type = "🐡 Pufferfish (optimisé Paper)"
+        elif "airplane" in combined_text:
+            server_type = "✈️ Airplane"
+        elif "spigot" in combined_text:
+            server_type = "🔌 Spigot"
+        elif "taco" in combined_text:
+            server_type = "🌮 TacoSpigot (optimisé Spigot)"
+        elif "bukkit" in combined_text:
+            server_type = "🪣 Bukkit"
+        elif "sponge" in combined_text:
+            server_type = "🧽 Sponge"
+        elif "mohist" in combined_text:
+            server_type = "⚙️ Mohist (Forge + Bukkit)"
+        elif "catserver" in combined_text:
+            server_type = "🐱 CatServer (Forge + Bukkit)"
+        elif "arclight" in combined_text:
+            server_type = "💡 Arclight (Forge + Bukkit)"
+        elif "magma" in combined_text:
+            server_type = "🔥 Magma (Forge + Bukkit)"
+        elif "vanilla" in combined_text:
+            server_type = "🍦 Vanilla"
+        elif "cuberite" in combined_text:
+            server_type = "🧊 Cuberite (C++ vanilla-like)"
+        elif "velocity" in combined_text:
+            server_type = "⚡ Velocity (proxy)"
+        elif "waterfall" in combined_text:
+            server_type = "💧 Waterfall (proxy)"
+        elif "travertine" in combined_text:
+            server_type = "⛲ Travertine (proxy)"
+        elif "bungeecord" in combined_text or "bungee" in combined_text:
+            server_type = "🔀 BungeeCord (proxy)"
+        elif "modded" in combined_text or "mod" in combined_text:
+            server_type = "🔧 Modded"
+        
+        return server_type
 
     async def get_status_embed(self):
         """Obtient l'embed de statut actuel et retourne également l'état du serveur"""
@@ -571,9 +593,15 @@ class MCStatusTracker(commands.Cog):
             if status.players.online > 0 and hasattr(status.players, 'sample'):
                 current_player_list = [p.name for p in status.players.sample]
 
-            # Détection du type de serveur
-            server_type = self.detect_server_type(status.version.name, 
-                                                 getattr(status, 'description', None))
+            # Récupérer le MOTD de manière plus robuste
+            motd = None
+            if hasattr(status, 'description'):
+                motd = status.description
+            elif hasattr(status, 'motd'):
+                motd = status.motd
+
+            # Détection du type de serveur avec le MOTD
+            server_type = self.detect_server_type(status.version.name, motd)
             
             # Création de l'embed avec les infos
             embed = discord.Embed(

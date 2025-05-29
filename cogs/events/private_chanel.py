@@ -131,6 +131,7 @@ class PrivateVoiceChannels(commands.Cog, name="private_voice"):  # Ajout du name
     @commands.Cog.listener()
     async def on_voice_state_update(self, member, before, after):
         try:
+            # Création d'un salon privé
             if after.channel and after.channel.name == "➕ Créer votre salon":
                 category = after.channel.category
                 channel_name = f"🎧 Salon de {member.display_name}"
@@ -183,10 +184,34 @@ class PrivateVoiceChannels(commands.Cog, name="private_voice"):  # Ajout du name
 
             # Si l'utilisateur quitte un salon temporaire
             if before.channel and before.channel.id in self.temp_channels:
-                if len(before.channel.members) == 0:
-                    await before.channel.delete()
-                    del self.temp_channels[before.channel.id]
-                    logger.info(f"🗑️ Salon privé supprimé (vide)")
+                await asyncio.sleep(0.5)  # Court délai pour s'assurer que l'état du salon est à jour
+                
+                try:
+                    # Vérifier si le salon existe toujours et s'il est vide
+                    channel = self.bot.get_channel(before.channel.id)
+                    if channel and len(channel.members) == 0:
+                        logger.info(f"🗑️ Suppression du salon privé '{channel.name}' (vide)")
+                        
+                        # Supprimer le salon de la mémoire avant de le supprimer de Discord
+                        # pour éviter des problèmes si plusieurs personnes quittent en même temps
+                        channel_data = self.temp_channels.pop(channel.id, None)
+                        
+                        # Tenter de supprimer le salon
+                        await channel.delete(reason="Salon privé vide")
+                        
+                        logger.info(f"✅ Salon privé supprimé avec succès")
+                except discord.NotFound:
+                    # Le salon a déjà été supprimé
+                    if before.channel.id in self.temp_channels:
+                        del self.temp_channels[before.channel.id]
+                    logger.info(f"ℹ️ Le salon a déjà été supprimé")
+                except discord.Forbidden:
+                    logger.error(f"❌ Permissions insuffisantes pour supprimer le salon")
+                except Exception as e:
+                    logger.error(f"❌ Erreur lors de la suppression du salon: {str(e)}")
+                    # Tenter de nettoyer les données si le salon n'existe plus
+                    if before.channel.id in self.temp_channels:
+                        del self.temp_channels[before.channel.id]
                     
         except Exception as e:
             logger.error(f"❌ Erreur lors de la gestion des salons: {str(e)}")
