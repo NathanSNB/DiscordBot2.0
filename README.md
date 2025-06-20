@@ -23,7 +23,7 @@
 1. **Cloner le repository**
    ```bash
    git clone https://github.com/NathanSNB/DiscordBot2.0.git
-   cd discordbot
+   cd DiscordBot2.0
    ```
 
 2. **Créer un environnement virtuel**
