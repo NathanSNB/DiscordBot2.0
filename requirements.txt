@@ -22,10 +22,19 @@ matplotlib>=3.10.1
 numpy>=2.0.2
 pillow>=11.0.0
 qrcode>=8.0.0
+kiwisolver>=1.4.7
 
 # Gestion du temps et formats
 tzdata>=2024.1
 python-dateutil>=2.9.0
+pytz>=2024.2
+zoneinfo>=0.2.1
+
+# Web scraping et parsing
+beautifulsoup4>=4.12.0
+soupsieve>=2.6.0
+lxml>=5.1.0
+html5lib>=1.1
 
 # Outils de développement
 black>=25.1.0
@@ -48,8 +57,39 @@ psutil>=7.0.0
 platformdirs>=4.3.7
 mcstatus>=10.0.0
 
+# Configuration et formats
+tomlkit>=0.12.0
+markdown>=3.6.0
+
 # Recherche Wikipédia
 wikipedia==1.4.0
 
-# Autres dépendances
-pytz
+# Autres utilitaires Python standard (inclus avec Python mais listés pour référence)
+# asyncio - inclus avec Python
+# json - inclus avec Python  
+# os - inclus avec Python
+# sys - inclus avec Python
+# datetime - inclus avec Python
+# logging - inclus avec Python
+# re - inclus avec Python
+# typing - inclus avec Python
+# collections - inclus avec Python
+# io - inclus avec Python
+# tempfile - inclus avec Python
+# subprocess - inclus avec Python
+# time - inclus avec Python
+# random - inclus avec Python
+# functools - inclus avec Python
+# itertools - inclus avec Python
+# pathlib - inclus avec Python
+# enum - inclus avec Python
+# inspect - inclus avec Python
+# socket - inclus avec Python
+# struct - inclus avec Python
+# base64 - inclus avec Python
+# hashlib - inclus avec Python
+# hmac - inclus avec Python
+# binascii - inclus avec Python
+# glob - inclus avec Python
+# shutil - inclus avec Python
+# warnings - inclus avec Python
