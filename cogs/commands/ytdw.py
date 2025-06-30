@@ -3,6 +3,8 @@ from discord.ext import commands
 import os
 import asyncio
 import yt_dlp
+import re
+from datetime import timedelta
 import logging
 from typing import Optional, Tuple
 from datetime import datetime
@@ -285,17 +287,146 @@ class YouTubeDownloader(commands.Cog):
             return url
         return url[:max_length] + "..."
 
+    def parse_timestamp(self, timestamp):
+        """Convertit un timestamp en secondes
+        Formats acceptés: 1:23, 1:23:45, 83, 1h23m45s, etc.
+        """
+        if isinstance(timestamp, (int, float)):
+            return int(timestamp)
+        
+        timestamp = str(timestamp).strip().lower()
+        
+        # Format: 1h23m45s
+        pattern_hms = r'(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?'
+        match_hms = re.match(pattern_hms, timestamp)
+        if match_hms and any(match_hms.groups()):
+            hours = int(match_hms.group(1) or 0)
+            minutes = int(match_hms.group(2) or 0)
+            seconds = int(match_hms.group(3) or 0)
+            return hours * 3600 + minutes * 60 + seconds
+        
+        # Format: MM:SS ou HH:MM:SS
+        if ':' in timestamp:
+            parts = timestamp.split(':')
+            if len(parts) == 2:  # MM:SS
+                minutes, seconds = map(int, parts)
+                return minutes * 60 + seconds
+            elif len(parts) == 3:  # HH:MM:SS
+                hours, minutes, seconds = map(int, parts)
+                return hours * 3600 + minutes * 60 + seconds
+        
+        # Format: nombre de secondes
+        try:
+            return int(float(timestamp))
+        except ValueError:
+            raise ValueError(f"Format de timestamp invalide: {timestamp}")
+
+    def format_timestamp_display(self, seconds):
+        """Formate un timestamp en secondes pour l'affichage"""
+        hours, remainder = divmod(int(seconds), 3600)
+        minutes, seconds = divmod(remainder, 60)
+        
+        if hours:
+            return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+        else:
+            return f"{minutes:02d}:{seconds:02d}"
+
+    def get_ydl_opts_with_clip(self, type: str = "audio", start_time: int = None, end_time: int = None) -> dict:
+        """Retourne les options yt-dlp avec clipping"""
+        base_opts = self.get_ydl_opts(type)
+        
+        if start_time is not None or end_time is not None:
+            # Ajouter les options de postprocessing pour FFmpeg
+            postprocessors = base_opts.get('postprocessors', [])
+            
+            # Créer les arguments FFmpeg pour le clipping
+            ffmpeg_args = []
+            if start_time is not None:
+                ffmpeg_args.extend(['-ss', str(start_time)])
+            if end_time is not None:
+                duration = end_time - (start_time or 0)
+                ffmpeg_args.extend(['-t', str(duration)])
+            
+            # Ajouter le postprocessor FFmpeg pour le clipping
+            clip_processor = {
+                'key': 'FFmpegVideoConvertor',
+                'preferedformat': 'mp4' if type == 'video' else 'mp3',
+                'when': 'before_dl'
+            }
+            
+            # Pour l'audio, utiliser FFmpegExtractAudio avec des options de clipping
+            if type == "audio":
+                audio_processor = {
+                    'key': 'FFmpegExtractAudio',
+                    'preferredcodec': 'mp3',
+                    'preferredquality': '192'
+                }
+                postprocessors = [audio_processor]
+            
+            base_opts['postprocessors'] = postprocessors
+            
+            # Ajouter les options de clipping directement dans les options de téléchargement
+            if ffmpeg_args:
+                base_opts['external_downloader_args'] = {
+                    'ffmpeg_i': ffmpeg_args
+                }
+        
+        return base_opts
+
+    async def extract_info_with_clip(self, url: str, start_time: int = None, end_time: int = None) -> Tuple[Optional[str], Optional[str], Optional[str], Optional[str]]:
+        """Extrait les informations de la vidéo avec clipping"""
+        try:
+            # D'abord, obtenir les informations de base sans télécharger
+            with yt_dlp.YoutubeDL({'quiet': True, 'no_warnings': True}) as ydl:
+                info = ydl.extract_info(url, download=False)
+                title = info.get('title', 'Video')
+                thumbnail = info.get('thumbnail')
+                duration = info.get('duration', 0)
+            
+            # Valider les timestamps
+            if end_time and end_time > duration:
+                end_time = duration
+            if start_time and start_time >= duration:
+                raise ValueError("Le timestamp de début dépasse la durée de la vidéo")
+            if start_time and end_time and start_time >= end_time:
+                raise ValueError("Le timestamp de début doit être inférieur au timestamp de fin")
+            
+            # Extraction avec clipping
+            audio_ydl_opts = self.get_ydl_opts_with_clip("audio", start_time, end_time)
+            video_ydl_opts = self.get_ydl_opts_with_clip("video", start_time, end_time)
+            
+            # Obtenir les URLs directes (sans téléchargement réel)
+            with yt_dlp.YoutubeDL(audio_ydl_opts) as ydl:
+                audio_info = ydl.extract_info(url, download=False)
+                audio_url = audio_info.get('url')
+            
+            with yt_dlp.YoutubeDL(video_ydl_opts) as ydl:
+                video_info = ydl.extract_info(url, download=False)
+                video_url = video_info.get('url')
+            
+            # Modifier le titre pour indiquer le clipping
+            if start_time is not None or end_time is not None:
+                start_display = self.format_timestamp_display(start_time) if start_time else "00:00"
+                end_display = self.format_timestamp_display(end_time) if end_time else self.format_timestamp_display(duration)
+                title = f"{title} [{start_display}-{end_display}]"
+            
+            return audio_url, video_url, title, thumbnail
+            
+        except Exception as e:
+            logger.error(f"Erreur d'extraction avec clipping: {e}")
+            return None, None, None, None
+
     @commands.command(
         name="ytdw",
-        help="Télécharge une vidéo YouTube",
-        description="Extrait les liens audio et vidéo d'une URL YouTube pour un téléchargement facile",
-        usage="<url>"
+        help="Télécharge une vidéo YouTube ou un extrait",
+        description="Extrait les liens audio et vidéo d'une URL YouTube. Optionnel: spécifier un segment avec timestamps",
+        usage="<url> [début] [fin]"
     )
-    async def download(self, ctx: commands.Context, url: str = None):
+    async def download(self, ctx: commands.Context, url: str = None, start_time: str = None, end_time: str = None):
         if not url:
             embed = self.create_embed(
                 f"{EMOJIS['error']} Paramètre manquant", 
-                "Veuillez fournir un lien YouTube.\n\n**Usage :** `!ytdw <lien YouTube>`",
+                "Veuillez fournir un lien YouTube.\n\n**Usage :** `!ytdw <lien YouTube> [début] [fin]`\n\n**Exemples de timestamps:**\n• `1:23` (1 minute 23 secondes)\n• `1:23:45` (1 heure 23 minutes 45 secondes)\n• `83` (83 secondes)\n• `1h23m45s` (format étendu)",
                 color=COLORS['error']
             )
             await ctx.reply(embed=embed)
@@ -312,20 +443,47 @@ class YouTubeDownloader(commands.Cog):
             await ctx.reply(embed=embed)
             return
 
+        # Parser les timestamps si fournis
+        parsed_start = None
+        parsed_end = None
+        clip_info = ""
+        
+        try:
+            if start_time:
+                parsed_start = self.parse_timestamp(start_time)
+                clip_info = f"\n🎬 **Extrait demandé:** {self.format_timestamp_display(parsed_start)}"
+                
+            if end_time:
+                parsed_end = self.parse_timestamp(end_time)
+                if parsed_start:
+                    clip_info = f"\n🎬 **Extrait demandé:** {self.format_timestamp_display(parsed_start)} → {self.format_timestamp_display(parsed_end)}"
+                else:
+                    clip_info = f"\n🎬 **Extrait demandé:** Début → {self.format_timestamp_display(parsed_end)}"
+                    
+        except ValueError as e:
+            embed = self.create_embed(
+                f"{EMOJIS['error']} Timestamp invalide", 
+                f"{str(e)}\n\n**Formats acceptés:**\n• `1:23` (minutes:secondes)\n• `1:23:45` (heures:minutes:secondes)\n• `83` (secondes)\n• `1h23m45s` (format étendu)",
+                color=COLORS['error']
+            )
+            await ctx.reply(embed=embed)
+            return
+
         # Message de chargement initial
+        loading_type = "extrait" if (parsed_start or parsed_end) else "vidéo complète"
         loading_embed = self.create_embed(
             "⏳ Initialisation", 
-            f"{self.create_progress_bar(0.1)} 10%\n\nPréparation de l'analyse...",
+            f"{self.create_progress_bar(0.1)} 10%\n\nPréparation de l'analyse ({loading_type})...{clip_info}",
             color=COLORS['info']
         )
         loading_msg = await ctx.reply(embed=loading_embed)
         
-        # États de progression pour un message évolutif
+        # États de progression
         loading_steps = [
             "Analyse du lien YouTube...",
-            "Extraction des informations de la vidéo...",
-            "Récupération des liens directs...",
-            "Préparation des résultats...",
+            "Validation des timestamps..." if (parsed_start or parsed_end) else "Extraction des informations...",
+            "Préparation du clipping..." if (parsed_start or parsed_end) else "Récupération des liens directs...",
+            "Génération des liens d'extrait..." if (parsed_start or parsed_end) else "Préparation des résultats...",
             "Finalisation..."
         ]
         
@@ -337,14 +495,17 @@ class YouTubeDownloader(commands.Cog):
                 emoji_index = await self.update_loading_message(loading_msg, 1, 5, loading_steps[0], emoji_index)
                 await asyncio.sleep(0.5)
                 
-                # Phase 2: Extraction des infos
+                # Phase 2: Validation/Extraction
                 emoji_index = await self.update_loading_message(loading_msg, 2, 5, loading_steps[1], emoji_index)
                 
-                # Phase 3: Récupération des liens
+                # Phase 3: Clipping/Récupération
                 emoji_index = await self.update_loading_message(loading_msg, 3, 5, loading_steps[2], emoji_index)
                 
-                # Récupérer les informations et les liens
-                audio_url, video_url, title, thumbnail = await self.extract_info(url)
+                # Récupérer les informations et les liens (avec ou sans clipping)
+                if parsed_start is not None or parsed_end is not None:
+                    audio_url, video_url, title, thumbnail = await self.extract_info_with_clip(url, parsed_start, parsed_end)
+                else:
+                    audio_url, video_url, title, thumbnail = await self.extract_info(url)
                 
                 # Phase 4: Préparation
                 emoji_index = await self.update_loading_message(loading_msg, 4, 5, loading_steps[3], emoji_index)
@@ -354,17 +515,34 @@ class YouTubeDownloader(commands.Cog):
                 await self.update_loading_message(loading_msg, 5, 5, loading_steps[4], emoji_index)
                 
                 if all([audio_url, video_url, title]):
+                    # Ajouter des informations sur l'extrait aux embeds
+                    clip_description = ""
+                    if parsed_start is not None or parsed_end is not None:
+                        start_display = self.format_timestamp_display(parsed_start) if parsed_start else "Début"
+                        end_display = self.format_timestamp_display(parsed_end) if parsed_end else "Fin"
+                        clip_description = f"\n\n🎬 **Extrait:** {start_display} → {end_display}"
+                    
                     # Créer les embeds avec les liens
                     audio_embed = self.create_audio_embed(title, audio_url, thumbnail, ctx.author)
                     video_embed = self.create_video_embed(title, video_url, thumbnail, ctx.author)
+                    
+                    # Ajouter l'information de clipping aux embeds
+                    if clip_description:
+                        audio_embed.description = (audio_embed.description or "") + clip_description
+                        video_embed.description = (video_embed.description or "") + clip_description
                     
                     # Envoyer les résultats
                     await loading_msg.edit(content=None, embed=audio_embed)
                     await ctx.send(embed=video_embed)
                 else:
+                    error_msg = "Impossible d'extraire les liens"
+                    if parsed_start is not None or parsed_end is not None:
+                        error_msg += " pour cet extrait"
+                    error_msg += " de cette vidéo."
+                    
                     error_embed = self.create_embed(
                         f"{EMOJIS['error']} Erreur", 
-                        "Impossible d'extraire les liens de cette vidéo.",
+                        error_msg,
                         color=COLORS['error']
                     )
                     await loading_msg.edit(embed=error_embed)

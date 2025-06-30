@@ -154,7 +154,7 @@ Besoin d’aide ou d’un retour ?
 
 Projet sous licence **GPL 3.0**.
 
-Développé avec ❤️ par **Nathan**
+Développé avec ❤️ par **Nathan** et **Gitex**
 
 ![Python](https://img.shields.io/badge/python-3.8-blue)
 ![License](https://img.shields.io/badge/license-GPLv3-blue)

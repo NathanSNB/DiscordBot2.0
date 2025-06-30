@@ -88,7 +88,8 @@ class Commandes_Moderations(commands.Cog):
                 if not 0 < limit <= 100:
                     await ctx.send("❌ Le nombre de messages doit être entre 1 et 100.")
                     return
-                deleted = await ctx.channel.purge(limit=limit)
+                # Ajouter +1 pour inclure le message de commande lui-même
+                deleted = await ctx.channel.purge(limit=limit + 1)
             
             embed = self.create_embed(
                 "Messages supprimés",

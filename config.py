@@ -107,6 +107,18 @@ class Config:
     @classmethod
     def check_config(cls):
         """Vérifie la validité de la configuration et crée les dossiers nécessaires"""
+        # Vérification du token en priorité et avec plus de détails
+        if not cls.TOKEN:
+            raise ValueError("❌ DISCORD_BOT_TOKEN manquant dans .env - Le bot ne peut pas fonctionner sans token")
+        
+        # Vérifications plus strictes sur le format du token
+        if not cls.TOKEN.strip():
+            raise ValueError("❌ DISCORD_BOT_TOKEN est vide")
+            
+        # Les tokens Discord commencent généralement par MT, NT ou OT
+        if not (cls.TOKEN.startswith(('MT', 'NT', 'OT')) and len(cls.TOKEN) > 50):
+            raise ValueError("❌ Format du token Discord invalide - Vérifiez le token dans le .env")
+        
         required_vars = [
             ("DISCORD_BOT_TOKEN", cls.TOKEN),
             ("BITLY_API_KEY", cls.BITLY_KEY),
@@ -125,12 +137,6 @@ class Config:
         if not cls.AUTHORIZED_CC or not cls.AUTHORIZED_HERESIE:
             raise ValueError("❌ Listes d'utilisateurs autorisés manquantes")
             
-        if not cls.TOKEN:
-            raise ValueError("❌ Token Discord manquant dans .env")
-            
-        if len(cls.TOKEN) < 50:  # Les tokens Discord font généralement plus de 50 caractères
-            raise ValueError("❌ Token Discord invalide")
-        
         # Création des dossiers nécessaires
         for directory in [cls.LOGS_DIR, cls.DATA_DIR, cls.UTILS_DIR]:
             os.makedirs(directory, exist_ok=True)

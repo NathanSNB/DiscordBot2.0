@@ -16,6 +16,9 @@ async def load_cogs(bot):
     # Liste de tous les cogs à charger (avec leur chemin relatif)
     cog_folders = ["cogs/commands", "cogs/events"]
     
+    # Fichiers à ignorer pour éviter les conflits
+    ignored_files = ["color.py"]  # Fichier qui cause des conflits avec ColorCommands
+    
     logger.info(f"🔄 Chargement des modules...")
     loaded = 0
     failed = 0
@@ -27,9 +30,32 @@ async def load_cogs(bot):
             logger.info(f"📁 Dossier {folder} créé")
         
         for filename in os.listdir(folder):
-            if filename.endswith(".py"):
+            # Ignorer les fichiers qui ne sont pas des modules Python valides
+            if (filename.endswith(".py") and 
+                filename != "__init__.py" and 
+                not filename.startswith("_") and 
+                not filename.startswith(".") and
+                filename not in ignored_files):
+                
                 module_path = f"{folder}/{filename}".replace("/", ".").replace(".py", "")
+                
+                # Vérifier si le cog n'est pas déjà chargé
                 try:
+                    # Vérifier les noms de cogs potentiels pour éviter les doublons
+                    cog_names_to_check = []
+                    if "color" in filename.lower():
+                        cog_names_to_check.append("ColorCommands")
+                    
+                    skip_loading = False
+                    for cog_name in cog_names_to_check:
+                        if cog_name in bot.cogs:
+                            logger.info(f"⚠️ Cog {cog_name} déjà chargé, ignore {module_path}")
+                            skip_loading = True
+                            break
+                    
+                    if skip_loading:
+                        continue
+                    
                     await bot.load_extension(module_path)
                     logger.info(f"✅ Module chargé: {module_path}")
                     loaded += 1
@@ -40,32 +66,6 @@ async def load_cogs(bot):
     
     # Afficher un résumé du chargement des modules
     logger.info(f"📊 Résultat du chargement des modules: {loaded} réussis, {failed} échoués")
-    
-    # Vérification spécifique pour le module ColorCommands
-    has_color_commands = False
-    for cog_name, cog in bot.cogs.items():
-        if cog_name == "ColorCommands":
-            has_color_commands = True
-            logger.info("✅ Module ColorCommands correctement chargé")
-            break
-    
-    # Si ColorCommands n'est pas chargé, essayer de le charger spécifiquement
-    if not has_color_commands:
-        try:
-            # Tenter de charger directement depuis couleur.py
-            await bot.load_extension("cogs.commands.couleur")
-            logger.info("✅ Module ColorCommands chargé avec succès depuis cogs.commands.couleur")
-            has_color_commands = True
-        except Exception as e:
-            logger.error(f"❌ Erreur lors du chargement de ColorCommands depuis couleur.py: {str(e)}")
-            try:
-                # Tenter avec color.py comme backup
-                await bot.load_extension("cogs.commands.color")
-                logger.info("✅ Module ColorCommands chargé avec succès depuis cogs.commands.color")
-                has_color_commands = True
-            except Exception as e2:
-                logger.error(f"❌ Erreur lors du chargement de ColorCommands depuis color.py: {str(e2)}")
-                logger.warning("⚠️ Module ColorCommands non chargé! Vérifiez les fichiers couleur.py et color.py")
     
     return loaded, failed
 

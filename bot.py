@@ -162,6 +162,13 @@ class MathysieBot(commands.Bot):
         Config.initialize_colors()
         print(f"🎨 Loaded embed color: #{Config.DEFAULT_COLOR:06X}")
         
+        # Vérifier que le module ColorAnalyzer est chargé
+        color_cog = self.get_cog('ColorAnalyzer')
+        if color_cog:
+            logger.info("🎨 Module d'analyse de couleurs chargé avec succès")
+        else:
+            logger.warning("⚠️ Module d'analyse de couleurs non chargé")
+
         # Rafraîchir le message des règles au démarrage
         try:
             await RulesManager.refresh_rules(self)
@@ -247,19 +254,41 @@ if __name__ == "__main__":
         os.makedirs("cogs/commands", exist_ok=True)
         os.makedirs("data", exist_ok=True)
         
+        # Vérification plus robuste du token
+        if not Config.TOKEN or not Config.TOKEN.strip():
+            logger.critical("❌ Le token Discord n'est pas configuré dans le fichier .env")
+            print("ERREUR: Aucun token Discord trouvé. Veuillez créer un fichier .env avec DISCORD_BOT_TOKEN=votre_token")
+            exit(1)
+            
+        # Vérification de format basique
+        if not (Config.TOKEN.startswith(('MT', 'NT', 'OT')) and len(Config.TOKEN) > 50):
+            logger.warning("⚠️ Le format du token Discord semble incorrect - vérifiez votre token")
+        
         # Vérifier que le fichier mcstarter.py existe
         mcstarter_path = "cogs/commands/mcstarter.py"
         if not os.path.exists(mcstarter_path):
             logger.warning(f"Le fichier {mcstarter_path} n'existe pas. Utilisez la commande 'mcstarter' pour activer le démarrage automatique.")
         
-        if not Config.TOKEN:
-            logger.critical("❌ Le token n'est pas configuré dans config.py")
+        try:
+            # Lancer la vérification de configuration avant de démarrer
+            Config.check_config()
+            
+            bot = MathysieBot()
+            bot.run(Config.TOKEN)
+        except ValueError as config_error:
+            logger.critical(f"❌ Erreur de configuration: {str(config_error)}")
+            print(f"ERREUR DE CONFIGURATION: {str(config_error)}")
             exit(1)
-        bot = MathysieBot()
-        bot.run(Config.TOKEN)
+        except discord.errors.LoginFailure as login_error:
+            logger.critical(f"❌ Échec d'authentification Discord: {str(login_error)}")
+            print("ERREUR D'AUTHENTIFICATION: Votre token Discord est invalide ou a été révoqué.")
+            print("Veuillez vérifier votre token ou en générer un nouveau sur le portail développeur Discord.")
+            exit(1)
     except AttributeError:
         logger.critical("❌ La variable TOKEN n'existe pas dans config.py")
         exit(1)
     except Exception as e:
         logger.critical(f"❌ Erreur inattendue: {str(e)}")
+        import traceback
+        traceback.print_exc()  # Afficher la stack trace complète pour un meilleur débogage
         exit(1)
