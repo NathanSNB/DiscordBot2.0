@@ -1,6 +1,6 @@
 # Discord et communication
-discord.py==2.5.2
-aiohttp==3.11.14
+discord.py>=2.3.0
+aiohttp>=3.8.0
 aiofiles==24.1.0
 aiohappyeyeballs==2.6.1
 aiosignal==1.3.2
@@ -18,22 +18,20 @@ ffmpeg-python>=0.2.0
 PyAudio>=0.2.14
 
 # Graphiques et traitement de données 
-matplotlib>=3.10.1
-numpy>=2.0.2
-pillow>=11.0.0
+matplotlib>=3.7.0
+numpy>=1.24.0
+pillow>=10.0.0
 qrcode>=8.0.0
 kiwisolver>=1.4.7
 
 # Conversion de fichiers et traitement d'images
-Pillow>=11.0.0
 python-magic>=0.4.27
 python-magic-bin>=0.4.14
 
 # Gestion du temps et formats
 tzdata>=2024.1
 python-dateutil>=2.9.0
-pytz>=2024.2
-zoneinfo>=0.2.1
+pytz>=2023.3
 
 # Web scraping et parsing
 beautifulsoup4>=4.12.0
@@ -46,7 +44,7 @@ black>=25.1.0
 pylint>=3.3.6
 
 # Gestion des requêtes et réseau
-requests==2.32.3
+requests>=2.31.0
 urllib3==2.3.0
 httpx>=0.28.1
 certifi==2025.1.31
@@ -60,7 +58,7 @@ frozenlist==1.5.0
 # Utilitaires système
 psutil>=7.0.0
 platformdirs>=4.3.7
-mcstatus>=10.0.0
+mcstatus>=11.0.0
 
 # Configuration et formats
 tomlkit>=0.12.0
@@ -70,7 +68,7 @@ markdown>=3.6.0
 wikipedia==1.4.0
 
 # Machine Learning pour analyse couleurs
-scikit-learn>=1.5.0
+scikit-learn>=1.3.0
 
 # Autres utilitaires Python standard (inclus avec Python mais listés pour référence)
 # asyncio - inclus avec Python
@@ -99,5 +97,7 @@ scikit-learn>=1.5.0
 # hmac - inclus avec Python
 # binascii - inclus avec Python
 # glob - inclus avec Python
+# shutil - inclus avec Python
+# warnings - inclus avec Python
 # shutil - inclus avec Python
 # warnings - inclus avec Python

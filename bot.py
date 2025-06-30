@@ -7,6 +7,9 @@ from utils.logger import setup_logger
 from utils.permission_manager import PermissionManager
 from utils.rules_manager import RulesManager
 from utils.warns_manager import WarnsManager
+from utils.database import db_manager
+from utils.migration import migration_manager
+from utils.access_manager import AccessManager
 import logging
 import os
 
@@ -22,13 +25,59 @@ class MathysieBot(commands.Bot):
         self.config = Config
         self.perm_manager = PermissionManager("data/permissions.json")
         self.warns_manager = WarnsManager("data/warns.json")
+        self.database_ready = False
 
     async def setup_hook(self):
         logger.info("🔄 Démarrage du bot...")
+        
+        # Initialiser la base de données globale
+        await db_manager.init_global_database()
+        self.database_ready = True
+        logger.info("✅ Base de données globale initialisée")
+        
         self.warns_manager.set_bot(self)
         # Utiliser le nouveau système de chargement des cogs
         await load_cogs(self)
-        # Ajouter le système d'aide personnalisé
+
+    async def on_guild_join(self, guild):
+        """Gestion de l'ajout à un nouveau serveur avec initialisation passive de la DB"""
+        logger.info(f"📥 Invité sur le serveur: {guild.name} ({guild.id})")
+        
+        # Vérifier les permissions d'accès
+        if not await AccessManager.check_guild_access(guild):
+            logger.warning(f"🚫 Serveur {guild.name} ({guild.id}) non autorisé - Départ automatique")
+            try:
+                owner = guild.owner
+                if owner:
+                    embed = discord.Embed(
+                        title="🚫 Accès refusé",
+                        description="Ce serveur n'est pas autorisé à utiliser ce bot.",
+                        color=discord.Color.red()
+                    )
+                    embed.add_field(
+                        name="Pour demander l'accès",
+                        value="Contactez les développeurs du bot",
+                        inline=False
+                    )
+                    await owner.send(embed=embed)
+            except:
+                pass
+            
+            await guild.leave()
+            return
+        
+        # Initialisation passive : enregistrer le serveur et créer sa DB automatiquement
+        await db_manager.register_guild(guild.id, guild.name)
+        
+        # Migrer les anciennes données si elles existent
+        await migration_manager.migrate_all_data(guild.id)
+        
+        logger.info(f"✅ Serveur {guild.name} enregistré avec sa base de données dédiée")
+
+    async def on_guild_remove(self, guild):
+        """Gestion du retrait d'un serveur"""
+        logger.info(f"📤 Retiré du serveur: {guild.name} ({guild.id})")
+        # Note: On garde la DB du serveur au cas où le bot reviendrait
 
     async def refresh_ticket_system(self):
         """Actualise le système de tickets pour appliquer la couleur actuelle des embeds"""
@@ -162,6 +211,15 @@ class MathysieBot(commands.Bot):
         Config.initialize_colors()
         print(f"🎨 Loaded embed color: #{Config.DEFAULT_COLOR:06X}")
         
+        # Initialisation passive : enregistrer tous les serveurs actuels avec leurs DB
+        logger.info(f"🔄 Initialisation passive des bases de données pour {len(self.guilds)} serveurs")
+        for guild in self.guilds:
+            await db_manager.register_guild(guild.id, guild.name)
+            # Migrer les données existantes pour chaque serveur
+            await migration_manager.migrate_all_data(guild.id)
+        
+        logger.info(f"✅ Toutes les bases de données serveur sont prêtes")
+        
         # Vérifier que le module ColorAnalyzer est chargé
         color_cog = self.get_cog('ColorAnalyzer')
         if color_cog:
@@ -237,7 +295,7 @@ class MathysieBot(commands.Bot):
             logger.error(f"❌ Erreur lors du rafraîchissement du message de tickets: {str(e)}")
         
         logger.info(f"🟢 Connecté en tant que {self.user}")
-        logger.info(f"🔗 Connecté sur {len(self.guilds)} serveurs")
+        logger.info(f"🔗 Connecté sur {len(self.guilds)} serveurs avec bases indépendantes")
 
     async def on_command(self, ctx):
         logger.info(f"📜 Commande '{ctx.command}' utilisée par {ctx.author}")
