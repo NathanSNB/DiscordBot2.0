@@ -32,7 +32,7 @@ def create_embed(title, description=None, embed_type="info"):
         description=description,
         color=EmbedManager.get_default_color(),
     )
-    embed.set_footer(text=EmbedManager.FOOTER_SYSTEM_ROLES)
+    embed.set_footer(text=EmbedManager.FOOTER_STANDARD)
     return embed
 
 
@@ -381,7 +381,7 @@ class RolesManagementCog(commands.Cog, name="RoleManager"):
                 count += 1
 
         embed.set_footer(
-            text=f"Total: {len(self.roles_data)} rôles • {EmbedManager.FOOTER_SYSTEM_ROLES}"
+            text=f"Total: {len(self.roles_data)} rôles • {EmbedManager.FOOTER_STANDARD}"
         )
         await ctx.send(embed=embed)
         logger.info(f"📋 Liste des rôles affichée pour {ctx.author}")

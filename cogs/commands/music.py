@@ -32,7 +32,7 @@ class Commandes_musicales(commands.Cog):
         if color is None:
             color = EmbedManager.get_default_color()
         embed = discord.Embed(title=title, description=description, color=color)
-        embed.set_footer(text=EmbedManager.FOOTER_SYSTEM_MUSIC)
+        embed.set_footer(text=EmbedManager.FOOTER_STANDARD)
         return embed
 
     async def _send_response(self, ctx, message, title="Réponse Bot Musique"):

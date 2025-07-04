@@ -166,7 +166,7 @@ class StatsCommands(commands.Cog):
         if color is None:
             color = EmbedManager.get_default_color()
         embed = discord.Embed(title=title, description=description, color=color)
-        embed.set_footer(text=EmbedManager.FOOTER_SYSTEM_STATS)
+        embed.set_footer(text=EmbedManager.FOOTER_STANDARD)
         return embed
 
     def format_time(self, minutes):
@@ -639,7 +639,7 @@ class StatsCommands(commands.Cog):
             sorted_games = self.get_sorted_data(filtered_games, limit)
 
             embed = self.create_embed("🎮 Top jeux joués")
-            embed.set_footer(text=EmbedManager.FOOTER_SYSTEM_STATS_GAMETIME)
+            embed.set_footer(text=EmbedManager.FOOTER_STANDARD)
 
             for game_name, minutes in sorted_games:
                 embed.add_field(

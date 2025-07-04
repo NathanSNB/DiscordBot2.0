@@ -370,7 +370,7 @@ class TicketSystem(commands.Cog, name="tickets"):
         from utils.embed_manager import EmbedManager
 
         embed = discord.Embed(
-            title=EmbedManager.HEADER_TICKET_SYSTEM,
+            title=EmbedManager.HEADER_STANDARD,
             description=(
                 "Besoin d'aide ? Une question ? Un problème ?\n"
                 "Créez un ticket en sélectionnant une raison dans le menu ci-dessous."
@@ -388,7 +388,7 @@ class TicketSystem(commands.Cog, name="tickets"):
             inline=False,
         )
 
-        embed.set_footer(text=EmbedManager.FOOTER_SYSTEM_SUPPORT)
+        embed.set_footer(text=EmbedManager.FOOTER_STANDARD)
         return embed
 
     @commands.command(

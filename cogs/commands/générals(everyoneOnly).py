@@ -20,7 +20,7 @@ class CommandesGénérales(commands.Cog):
         if color is None:
             color = EmbedManager.get_default_color()
         embed = discord.Embed(title=title, description=description, color=color)
-        embed.set_footer(text=EmbedManager.FOOTER_UTILITIES_GENERAL)
+        embed.set_footer(text=EmbedManager.FOOTER_STANDARD)
         return embed
 
     @commands.Cog.listener()

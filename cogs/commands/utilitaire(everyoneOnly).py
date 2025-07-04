@@ -31,7 +31,7 @@ class Commandes_Webs(commands.Cog):
         if color is None:
             color = EmbedManager.get_default_color()
         embed = discord.Embed(title=title, description=description, color=color)
-        embed.set_footer(text=EmbedManager.FOOTER_UTILITIES_WEB)
+        embed.set_footer(text=EmbedManager.FOOTER_STANDARD)
         return embed
 
     def is_valid_url(self, url):

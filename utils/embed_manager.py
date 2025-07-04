@@ -10,45 +10,19 @@ class EmbedManager:
 
     _default_color = None  # Cache de la couleur par défaut
 
-    # Constantes pour les footers d'embed
-    FOOTER_DEFAULT = "MathysieBot™"
-    FOOTER_SYSTEM_ROLES = "Bot Discord - Système de Rôles"
-    FOOTER_SYSTEM_STATS = "📊 Système de Statistiques"
-    FOOTER_SYSTEM_STATS_GAMETIME = "Temps total de jeu"
-    FOOTER_SYSTEM_MUSIC = "Bot de Musique"
-    FOOTER_SYSTEM_SUPPORT = "Support · Utilisez le menu déroulant pour ouvrir un ticket"
-    FOOTER_SYSTEM_LOGS = "Système de Logs"
-    FOOTER_SYSTEM_URGENT = "Système d'Urgence - Hérésie"
-    FOOTER_SYSTEM_ECONOMY = "Système de Crédits Sociaux"
-    FOOTER_SYSTEM_PERMISSIONS = "MathysieBot™ • Système de permissions"
-    FOOTER_UTILITIES_WEB = "Bot Discord - Utilitaires Web"
-    FOOTER_UTILITIES_GENERAL = "Bot Discord - Commandes Générales"
-    FOOTER_YOUTUBE_INFO = "MathysieBot™ • YouTube Info"
-    FOOTER_YOUTUBE_EXTRACTOR = "MathysieBot™ • YouTube Extractor"
-    FOOTER_YOUTUBE_DOWNLOADER = "MathysieBot™ • YtDw"
-    FOOTER_WIKIPEDIA = "MathysieBot™ • Wikipédia"
-    FOOTER_HELP_SYSTEM = "Développé avec ❤️ par l'équipe Mathysie"
-    FOOTER_HELP_NAVIGATION = (
-        "Utilisez le menu déroulant pour naviguer entre les catégories"
-    )
+    # Constantes unifiées pour les footers et headers d'embed
+    # Footer standard pour tous les embeds
+    FOOTER_STANDARD = "MathysieBot™ • Développé avec ❤️ par l'équipe Mathysie"
+
+    # Header standard pour tous les embeds
+    HEADER_STANDARD = "🌟 MathysieBot™"
+
+    # Constantes spéciales pour les cas d'usage spécifiques
+    HEADER_WELCOME = "🌟 Bienvenue sur {guild_name} !"
+    HEADER_ACCESS_GRANTED = "✅ Accès accordé !"
     FOOTER_WELCOME = (
         "Une fois ces étapes terminées, tu auras accès à l'ensemble du serveur !"
     )
-    FOOTER_BEDTIME = "Passez une douce nuit"
-
-    # Constantes pour les headers/titres d'embed
-    HEADER_WELCOME = "🌟 Bienvenue sur {guild_name} !"
-    HEADER_ACCESS_GRANTED = "✅ Accès accordé !"
-    HEADER_TICKET_SYSTEM = "🎫 Système de Tickets"
-    HEADER_RULES = "📜 Règlement du Serveur"
-    HEADER_HELP_MAIN = "📚 Menu d'aide de MathysieBot™"
-    HEADER_STATS = "📊 Statistiques"
-    HEADER_ROLES = "🎭 Choisissez vos rôles"
-    HEADER_MUSIC = "🎵 Lecteur de Musique"
-    HEADER_WIKIPEDIA = "📖 Wikipédia"
-    HEADER_YOUTUBE = "📺 YouTube"
-    HEADER_URGENT = "🚨 Alerte d'Urgence"
-    HEADER_ECONOMY = "💰 Système Économique"
 
     @classmethod
     def get_default_color(cls) -> discord.Color:

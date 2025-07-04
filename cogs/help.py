@@ -133,11 +133,12 @@ class HelpView(View):
 
 def create_main_help_embed(bot):
     embed = EmbedManager.create_embed(
-        title=EmbedManager.HEADER_HELP_MAIN,
+        title=EmbedManager.HEADER_STANDARD,
         description=f"Bienvenue dans le système d'aide de MathysieBot™\n\n"
         f"Utilisez le menu déroulant ci-dessous pour explorer les différentes catégories de commandes.\n\n"
         f"**Préfixe des commandes:** `{bot.config.PREFIX}`",
         timestamp=datetime.datetime.now(),
+        footer=EmbedManager.FOOTER_STANDARD,
     )
     embed.set_thumbnail(url=bot.user.display_avatar.url)
 
@@ -166,9 +167,7 @@ def create_main_help_embed(bot):
 
     embed.add_field(name="━━━ ❓ Aide ━━━", value="• HelpCog", inline=False)
 
-    embed.set_footer(
-        text=f"{EmbedManager.FOOTER_HELP_SYSTEM} • {bot.config.PREFIX}help [commande] pour plus de détails"
-    )
+    embed.set_thumbnail(url=bot.user.display_avatar.url)
     return embed
 
 
@@ -177,7 +176,7 @@ def create_category_embed(bot, category, emoji, modules_list):
         title=f"{emoji} Commandes {category}",
         description=f"Voici les modules disponibles dans la catégorie {category}.\n"
         f"Utilisez `{bot.config.PREFIX}help [commande]` pour plus d'informations sur une commande spécifique.",
-        color=0x7289DA,
+        color=EmbedManager.get_default_color(),
         timestamp=datetime.datetime.now(),
     )
 
@@ -204,7 +203,7 @@ def create_category_embed(bot, category, emoji, modules_list):
         embed.add_field(name=f"📌 {module}", value=description, inline=False)
 
     embed.set_thumbnail(url=bot.user.display_avatar.url)
-    embed.set_footer(text=EmbedManager.FOOTER_HELP_NAVIGATION)
+    embed.set_footer(text=EmbedManager.FOOTER_STANDARD)
     return embed
 
 

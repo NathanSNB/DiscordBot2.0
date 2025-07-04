@@ -132,7 +132,7 @@ class YouTubeDownloader(commands.Cog):
                     inline=field.get("inline", False),
                 )
 
-        embed.set_footer(text=EmbedManager.FOOTER_YOUTUBE_INFO, icon_url=self.icon_url)
+        embed.set_footer(text=EmbedManager.FOOTER_STANDARD, icon_url=self.icon_url)
         return embed
 
     def create_info_embed(
@@ -174,9 +174,7 @@ class YouTubeDownloader(commands.Cog):
             value=f"[Télécharger MP4]({video_url})\n`Résolution maximale`",
             inline=True,
         )
-        embed.set_footer(
-            text=EmbedManager.FOOTER_YOUTUBE_EXTRACTOR, icon_url=self.icon_url
-        )
+        embed.set_footer(text=EmbedManager.FOOTER_STANDARD, icon_url=self.icon_url)
         return embed
 
     def create_audio_embed(
@@ -202,9 +200,7 @@ class YouTubeDownloader(commands.Cog):
             f"Par        : {author.display_name}```",
             inline=False,
         )
-        embed.set_footer(
-            text=EmbedManager.FOOTER_YOUTUBE_DOWNLOADER, icon_url=self.icon_url
-        )
+        embed.set_footer(text=EmbedManager.FOOTER_STANDARD, icon_url=self.icon_url)
         return embed
 
     def create_video_embed(
@@ -230,9 +226,7 @@ class YouTubeDownloader(commands.Cog):
             f"Par        : {author.display_name}```",
             inline=False,
         )
-        embed.set_footer(
-            text=EmbedManager.FOOTER_YOUTUBE_DOWNLOADER, icon_url=self.icon_url
-        )
+        embed.set_footer(text=EmbedManager.FOOTER_STANDARD, icon_url=self.icon_url)
         return embed
 
     def extract_video_id(self, url):
