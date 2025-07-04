@@ -14,6 +14,7 @@ class EmbedManager:
     FOOTER_DEFAULT = "MathysieBot™"
     FOOTER_SYSTEM_ROLES = "Bot Discord - Système de Rôles"
     FOOTER_SYSTEM_STATS = "📊 Système de Statistiques"
+    FOOTER_SYSTEM_STATS_GAMETIME = "Temps total de jeu"
     FOOTER_SYSTEM_MUSIC = "Bot de Musique"
     FOOTER_SYSTEM_SUPPORT = "Support · Utilisez le menu déroulant pour ouvrir un ticket"
     FOOTER_SYSTEM_LOGS = "Système de Logs"
