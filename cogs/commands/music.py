@@ -2,10 +2,12 @@ import discord
 from discord.ext import commands, tasks
 import yt_dlp as youtube_dl
 import asyncio
-import logging 
+import logging
 from utils.embed_manager import EmbedManager
 
-logger = logging.getLogger('bot')  # Configuration du logger
+logger = logging.getLogger("bot")  # Configuration du logger
+
+
 class Commandes_musicales(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -20,21 +22,25 @@ class Commandes_musicales(commands.Cog):
             voice_client = guild.voice_client
             if voice_client and voice_client.channel.members:
                 # Si le bot est dans un salon vocal et qu'il y a des membres présents
-                if len(voice_client.channel.members) == 1:  # Vérifie si seul le bot est présent
+                if (
+                    len(voice_client.channel.members) == 1
+                ):  # Vérifie si seul le bot est présent
                     await voice_client.disconnect()
 
-    def create_embed(self, title, description=None, color=None):
-        """Crée un embed standard pour les réponses."""
-        if color is None:
-            color = EmbedManager.get_default_color()
-        embed = discord.Embed(title=title, description=description, color=color)
-        embed.set_footer(text="Bot de Musique")
-        return embed
+    def create_embed(self, title, description=None, embed_type="music"):
+        """Crée un embed standard pour les réponses musicales."""
+        return EmbedManager.create_professional_embed(
+            title=title, description=description, embed_type=embed_type
+        )
 
-    async def _send_response(self, ctx, message, title="Réponse Bot Musique"):
-        """Envoie une réponse avec un embed."""
+    async def _send_response(
+        self, ctx, message, title="Système Musical", embed_type="music"
+    ):
+        """Envoie une réponse avec un embed professionnel."""
         try:
-            embed = self.create_embed(title=title, description=message)
+            embed = EmbedManager.create_professional_embed(
+                title=title, description=message, embed_type=embed_type
+            )
             if isinstance(ctx, discord.Interaction):
                 return await ctx.followup.send(embed=embed)
             else:
@@ -44,7 +50,10 @@ class Commandes_musicales(commands.Cog):
         except Exception as e:
             print(f"⚠️ Erreur lors de l'envoi de la réponse : {e}")
 
-    @commands.hybrid_command(name="play", description="Joue la musique depuis une URL YouTube ou une playlist.")
+    @commands.hybrid_command(
+        name="play",
+        description="Joue la musique depuis une URL YouTube ou une playlist.",
+    )
     async def play(self, ctx, url: str):
         """Joue la musique à partir d'une URL YouTube (chanson ou playlist)."""
         # Déférer l'interaction immédiatement pour éviter qu'elle expire
@@ -53,7 +62,9 @@ class Commandes_musicales(commands.Cog):
 
         # Vérifier si l'utilisateur est dans un salon vocal
         if not ctx.author.voice:
-            response_message = "❌ Vous devez être dans un salon vocal pour jouer de la musique."
+            response_message = (
+                "❌ Vous devez être dans un salon vocal pour jouer de la musique."
+            )
             await self._send_response(ctx, response_message)
             return
 
@@ -75,64 +86,77 @@ class Commandes_musicales(commands.Cog):
                 await voice_client.move_to(voice_channel)
 
             # Vérifier si l'URL est une playlist
-            if 'playlist' in url:
+            if "playlist" in url:
                 await self.play_playlist(url, voice_client, ctx)
             else:
                 await self.play_music(url, voice_client)
 
             # Sauvegarder le dernier message du bot contenant le lien
-            self.last_message = await self._send_response(ctx, f"🎵 En train de jouer : **{url}**")
+            self.last_message = await self._send_response(
+                ctx, f"🎵 En train de jouer : **{url}**"
+            )
         except discord.ClientException as e:
             response_message = f"❌ Erreur de connexion au salon vocal : {e}"
             await self._send_response(ctx, response_message)
         except Exception as e:
-            response_message = f"❌ Une erreur est survenue lors de la lecture de la musique : {e}"
+            response_message = (
+                f"❌ Une erreur est survenue lors de la lecture de la musique : {e}"
+            )
             await self._send_response(ctx, response_message)
 
     async def play_playlist(self, url, voice_client, ctx):
         """Joue la playlist entière en enchaînant les vidéos."""
         ydl_opts = {
-            'format': 'bestaudio/best',
-            'quiet': True,
-            'nocheckcertificate': True,
-            'extract_flat': True,  # Pour éviter de télécharger les vidéos, juste l'audio
+            "format": "bestaudio/best",
+            "quiet": True,
+            "nocheckcertificate": True,
+            "extract_flat": True,  # Pour éviter de télécharger les vidéos, juste l'audio
         }
 
         with youtube_dl.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
-            playlist_title = info.get('title', 'Playlist inconnue')
-            videos = info['entries']
+            playlist_title = info.get("title", "Playlist inconnue")
+            videos = info["entries"]
 
             # Ajouter chaque vidéo à la queue
             for video in videos:
-                self.queue.append(video['url'])
+                self.queue.append(video["url"])
 
             # Joue la première vidéo
             await self.play_music(self.queue.pop(0), voice_client)
 
             # Indiquer la playlist en cours
-            await self._send_response(ctx, f"🎶 Playlist en cours : {playlist_title}", title="Lecture de Playlist")
+            await self._send_response(
+                ctx,
+                f"🎶 Playlist en cours : {playlist_title}",
+                title="Lecture de Playlist",
+            )
 
     async def play_music(self, url, voice_client):
         """Joue la musique via FFmpeg."""
         ydl_opts = {
-            'format': 'bestaudio/best',
-            'postprocessors': [{
-                'key': 'FFmpegExtractAudio',
-                'preferredcodec': 'opus',
-                'preferredquality': '320',
-            }],
-            'quiet': True,
-            'nocheckcertificate': True,
+            "format": "bestaudio/best",
+            "postprocessors": [
+                {
+                    "key": "FFmpegExtractAudio",
+                    "preferredcodec": "opus",
+                    "preferredquality": "320",
+                }
+            ],
+            "quiet": True,
+            "nocheckcertificate": True,
         }
 
         with youtube_dl.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
-            audio_url = info['url']
+            audio_url = info["url"]
 
             source = discord.FFmpegPCMAudio(audio_url, executable="ffmpeg")
             if not voice_client.is_playing():
-                voice_client.play(source, after=lambda e: asyncio.run(self.handle_audio_end(e, voice_client)))
+                voice_client.play(
+                    source,
+                    after=lambda e: asyncio.run(self.handle_audio_end(e, voice_client)),
+                )
 
     async def handle_audio_end(self, error, voice_client):
         """Gestion de la fin de la musique."""
@@ -144,7 +168,9 @@ class Commandes_musicales(commands.Cog):
         else:
             await voice_client.disconnect()
 
-    @commands.hybrid_command(name="stop", description="Arrête la musique et déconnecte le bot.")
+    @commands.hybrid_command(
+        name="stop", description="Arrête la musique et déconnecte le bot."
+    )
     async def stop(self, ctx):
         """Arrête la musique et déconnecte le bot."""
         if isinstance(ctx, discord.Interaction) and not ctx.response.is_done():
@@ -165,6 +191,7 @@ class Commandes_musicales(commands.Cog):
             response_message = "❌ Le bot n'est pas connecté à un salon vocal."
 
         await self._send_response(ctx, response_message, title="Musique Arrêtée")
+
 
 # Ajout de la cog
 async def setup(bot):
