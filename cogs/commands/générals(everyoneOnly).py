@@ -825,6 +825,5 @@ class CommandesGénérales(commands.Cog):
 
         return f"{h:.0f}°, {s:.0f}%, {v:.0f}%"
 
-
 async def setup(bot):
     await bot.add_cog(CommandesGénérales(bot))
