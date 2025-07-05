@@ -94,72 +94,9 @@ class StatsCommands(commands.Cog):
     @commands.Cog.listener()
     async def on_presence_update(self, before, after):
         """Traque les activités de jeu des membres"""
-        try:
-            # Ignorer les bots
-            if after.bot:
-                return
-
-            # Vérifie les changements d'activité
-            before_game = next(
-                (
-                    activity
-                    for activity in before.activities
-                    if activity.type == discord.ActivityType.playing
-                ),
-                None,
-            )
-            after_game = next(
-                (
-                    activity
-                    for activity in after.activities
-                    if activity.type == discord.ActivityType.playing
-                ),
-                None,
-            )
-
-            # Si aucun changement pertinent, on sort
-            if before_game == after_game:
-                return
-
-            # Initialise la section games si nécessaire
-            if "games" not in self.stats_data:
-                self.stats_data["games"] = {}
-
-            # Si un jeu se termine
-            if before_game and not after_game:
-                game_name = before_game.name
-                # Vérifier si le jeu doit être filtré
-                if not self.should_filter_game(game_name):
-                    # Correction ici: s'assurer que la valeur est un entier avant d'incrémenter
-                    current_count = self.stats_data["games"].get(game_name, 0)
-                    # Vérifier si current_count est un dictionnaire
-                    if isinstance(current_count, dict):
-                        # Si c'est un dictionnaire, initialiser avec 1
-                        self.stats_data["games"][game_name] = 1
-                    else:
-                        # Sinon, incrémenter normalement
-                        self.stats_data["games"][game_name] = current_count + 1
-                    logger.info(f"🎮 {after.name} a terminé de jouer à {game_name}")
-
-            # Si un nouveau jeu commence
-            elif after_game and not before_game:
-                game_name = after_game.name
-                # Vérifier si le jeu doit être filtré
-                if not self.should_filter_game(game_name):
-                    # S'assurer qu'il existe une entrée pour ce jeu
-                    if game_name not in self.stats_data["games"]:
-                        self.stats_data["games"][game_name] = 0
-                    # Vérifier si la valeur est un dictionnaire
-                    elif isinstance(self.stats_data["games"][game_name], dict):
-                        self.stats_data["games"][game_name] = 0
-                    logger.info(f"🎮 {after.name} a commencé à jouer à {game_name}")
-
-            # Sauvegarde des données
-            with open("data/stats.json", "w", encoding="utf-8") as f:
-                json.dump(self.stats_data, f, indent=4)
-
-        except Exception as e:
-            logger.error(f"❌ Erreur tracking jeu: {str(e)}")
+        # Cette méthode est désactivée car le tracking des jeux est maintenant géré par statsUsers.py
+        # pour éviter les conflits de données
+        pass
 
     def create_embed(self, title, description=None, embed_type="stats"):
         """Crée un embed standard pour les statistiques"""
@@ -422,7 +359,8 @@ class StatsCommands(commands.Cog):
         )
 
         await ctx.send(embed=embed)
-        await ctx.send(file=discord.File(buffer, filename="server_activity.png"))
+        if buffer:
+            await ctx.send(file=discord.File(buffer, filename="server_activity.png"))
 
     @commands.command(
         name="top",
@@ -622,21 +560,24 @@ class StatsCommands(commands.Cog):
                 await ctx.send("❌ Aucune donnée de jeu disponible")
                 return
 
-            # Filtrer les jeux contenant les mots à exclure
-            filtered_games = {}
-            for game_name, minutes in games_data.items():
-                if (
-                    not self.should_filter_game(game_name)
-                    and minutes
-                    and str(minutes).replace(".", "", 1).isdigit()
-                ):
-                    filtered_games[str(game_name)] = float(minutes)
+            # Calculer le temps total par jeu (somme de tous les utilisateurs)
+            game_totals = {}
+            for game_name, user_data in games_data.items():
+                if isinstance(user_data, dict):
+                    # Nouvelle structure: games[game_name][user_id] = minutes
+                    total_minutes = sum(user_data.values())
+                    if total_minutes > 0 and not self.should_filter_game(game_name):
+                        game_totals[game_name] = total_minutes
+                elif isinstance(user_data, (int, float)):
+                    # Ancienne structure: games[game_name] = total_count (pour compatibilité)
+                    if user_data > 0 and not self.should_filter_game(game_name):
+                        game_totals[game_name] = user_data
 
-            if not filtered_games:
+            if not game_totals:
                 await ctx.send("❌ Aucune donnée valide trouvée après filtrage")
                 return
 
-            sorted_games = self.get_sorted_data(filtered_games, limit)
+            sorted_games = self.get_sorted_data(game_totals, limit)
 
             embed = self.create_embed("🎮 Top jeux joués")
             embed.set_footer(text=EmbedManager.FOOTER_STANDARD)
@@ -657,7 +598,8 @@ class StatsCommands(commands.Cog):
                 )
 
                 await ctx.send(embed=embed)
-                await ctx.send(file=discord.File(buffer, filename="games_stats.png"))
+                if buffer:
+                    await ctx.send(file=discord.File(buffer, filename="games_stats.png"))
             else:
                 await ctx.send(embed=embed)
 
