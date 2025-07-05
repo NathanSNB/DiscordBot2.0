@@ -65,8 +65,8 @@ Le bot utilise un **système de base de données par serveur**, permettant une i
 - `!mute`, `!unmute` — Gestion des mutes  
 
 ### 💰 Économie
-- `!cc` — Afficher les crédits sociaux  
-- `!add`, `!remove` — Ajouter/retirer des crédits  
+- `!cc` — Afficher les coins  
+- `!add`, `!remove` — Ajouter/retirer des coins  
 - `!create` — Créer un compte utilisateur  
 
 ### 📊 Statistiques

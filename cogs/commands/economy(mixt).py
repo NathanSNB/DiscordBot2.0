@@ -42,16 +42,16 @@ class Commandes_Economie(commands.Cog):
         return EmbedManager.create_embed(
             title=title,
             description=description
-        ).set_footer(text="Système de Crédits Sociaux")
+        ).set_footer(text="Système de Coins")
 
     @commands.command(
         name="cc",
-        help="Liste des crédits sociaux",
-        description="Affiche les crédits de tous les utilisateurs enregistrés",
+        help="Liste des coins",
+        description="Affiche les coins de tous les utilisateurs enregistrés",
         usage=""
     )
     async def check_coins(self, ctx):
-        """Affiche les crédits de tous les utilisateurs"""
+        """Affiche les coins de tous les utilisateurs"""
         if not self.is_authorized(ctx):
             return await ctx.send("❌ Accès refusé")
             
@@ -59,24 +59,24 @@ class Commandes_Economie(commands.Cog):
         if not economy:
             return await ctx.send("❌ Aucun utilisateur enregistré")
 
-        embed = self.create_embed("💰 Crédits Sociaux")
+        embed = self.create_embed("💰 Coins")
         for user, credits in economy.items():
             emoji = "🔴" if credits < 0 else "🟢" if credits > 0 else "⚪"
             embed.add_field(
                 name=f"{emoji} {user}",
-                value=f"{credits} cc",
+                value=f"{credits} coins",
                 inline=False
             )
         await ctx.send(embed=embed)
 
     @commands.command(
         name="add",
-        help="Ajoute des crédits",
-        description="Ajoute une quantité spécifiée de crédits à un utilisateur",
+        help="Ajoute des coins",
+        description="Ajoute une quantité spécifiée de coins à un utilisateur",
         usage="<utilisateur> <montant>"
     )
     async def add_coins(self, ctx, user: str, amount: int):
-        """Ajoute des crédits à un utilisateur"""
+        """Ajoute des coins à un utilisateur"""
         if not self.is_authorized(ctx):
             return await ctx.send("❌ Accès refusé")
 
@@ -86,12 +86,12 @@ class Commandes_Economie(commands.Cog):
 
         economy[user] += amount
         self.save_economy(economy)
-        await ctx.send(f"✅ {amount} cc ajoutés à {user}. Nouveau solde: {economy[user]} cc")
+        await ctx.send(f"✅ {amount} coins ajoutés à {user}. Nouveau solde: {economy[user]} coins")
 
     @commands.command(
         name="creditdel",
-        help="Retire des crédits",
-        description="Retire une quantité spécifiée de crédits à un utilisateur",
+        help="Retire des coins",
+        description="Retire une quantité spécifiée de coins à un utilisateur",
         usage="<utilisateur> <montant>"
     )
     async def remove_coins(self, ctx, user_name: str, amount: int):
@@ -107,15 +107,15 @@ class Commandes_Economie(commands.Cog):
         economy[user_name] -= amount
         self.save_economy(economy)
         embed = self.create_embed(
-            "✅ Crédits retirés",
-            f"{amount} cc retirés à {user_name}\nNouveau solde: {economy[user_name]} cc"
+            "✅ Coins retirés",
+            f"{amount} coins retirés à {user_name}\nNouveau solde: {economy[user_name]} coins"
         )
         await ctx.send(embed=embed)
 
     @commands.command(
         name="usercreate",
         help="Crée un utilisateur",
-        description="Crée un nouvel utilisateur dans le système de crédits",
+        description="Crée un nouvel utilisateur dans le système de coins",
         usage="<nom_utilisateur>"
     )
     async def create_user(self, ctx, user: str):
@@ -129,7 +129,7 @@ class Commandes_Economie(commands.Cog):
 
         economy[user] = 0
         self.save_economy(economy)
-        await ctx.send(f"✅ {user} créé avec 0 cc")
+        await ctx.send(f"✅ {user} créé avec 0 coins")
 
     @commands.command(
         name="userrename",
