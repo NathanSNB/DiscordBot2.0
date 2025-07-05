@@ -4,16 +4,42 @@ import json
 import os
 import datetime
 import re
+import logging
 from collections import defaultdict
+from dotenv import load_dotenv
+
+logger = logging.getLogger(__name__)
+
+# Charger les variables d'environnement
+load_dotenv()
+
+# Récupérer les mots filtrés pour les jeux
+filtered_words_str = os.getenv("FILTERED_GAME_WORDS", "")
+filtered_game_words = filtered_words_str.split(",") if filtered_words_str else []
 
 class StatsListener(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.stats_file = 'data/stats.json'
+        self.filtered_game_words = filtered_game_words
         self.init_stats_data()
         self.check_voice_time.start()
         self.track_activities.start()
         self.update_history.start()
+
+    def should_filter_game(self, game_name):
+        """Vérifie si le nom du jeu contient un des mots à filtrer"""
+        if not game_name:
+            return False
+
+        # Convertir le nom du jeu en minuscules pour une comparaison insensible à la casse
+        game_name_lower = game_name.lower()
+
+        # Vérifier si l'un des mots filtrés est présent dans le nom du jeu
+        for word in self.filtered_game_words:
+            if word.lower() in game_name_lower:
+                return True
+        return False
 
     def init_stats_data(self):
         """Initialise ou charge les données de statistiques"""
@@ -75,9 +101,9 @@ class StatsListener(commands.Cog):
                             self.stats_data[key][subkey] = subvalue
 
             self.save_stats()
-            print.info("📈 Données statistiques chargées")
+            logger.info("📈 Données statistiques chargées")
         except Exception as e:
-            print.error(f"❌ Erreur de chargement des stats: {str(e)}")
+            logger.error(f"❌ Erreur de chargement des stats: {str(e)}")
             self.init_default_stats()
 
     def init_default_stats(self):
@@ -110,7 +136,7 @@ class StatsListener(commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self):
-        print(f"{self.bot.user.name} - Système de statistiques activé")
+        logger.info(f"{self.bot.user.name} - Système de statistiques activé")
 
     @commands.Cog.listener()
     async def on_message(self, message):
@@ -174,9 +200,11 @@ class StatsListener(commands.Cog):
                 for activity in member.activities:
                     if activity.type == discord.ActivityType.playing:
                         game_name = activity.name
-                        if game_name not in self.stats_data['games']:
-                            self.stats_data['games'][game_name] = {}
-                        self.stats_data['games'][game_name][user_id] = self.stats_data['games'][game_name].get(user_id, 0) + 5
+                        # Vérifier si le jeu doit être filtré
+                        if not self.should_filter_game(game_name):
+                            if game_name not in self.stats_data['games']:
+                                self.stats_data['games'][game_name] = {}
+                            self.stats_data['games'][game_name][user_id] = self.stats_data['games'][game_name].get(user_id, 0) + 5
                     
                     elif activity.type == discord.ActivityType.streaming:
                         self.stats_data['streaming'][user_id] = self.stats_data['streaming'].get(user_id, 0) + 5
