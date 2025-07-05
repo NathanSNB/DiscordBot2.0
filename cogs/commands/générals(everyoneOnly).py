@@ -15,13 +15,13 @@ class CommandesGénérales(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    def create_embed(self, title, description=None, color=None):
-        """Crée un embed standard"""
-        if color is None:
-            color = EmbedManager.get_default_color()
-        embed = discord.Embed(title=title, description=description, color=color)
-        embed.set_footer(text=EmbedManager.FOOTER_STANDARD)
-        return embed
+    def create_embed(self, title, description=None, embed_type="info"):
+        """Crée un embed standard pour les commandes générales"""
+        return EmbedManager.create_professional_embed(
+            title=title,
+            description=description,
+            embed_type=embed_type
+        )
 
     @commands.Cog.listener()
     async def on_command_error(self, ctx, error):

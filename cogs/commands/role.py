@@ -22,18 +22,9 @@ EMBED_EMOJIS = {
 
 def create_embed(title, description=None, embed_type="info"):
     """Crée un embed standard avec des émojis"""
-    emoji_prefix = ""
-
-    if embed_type in EMBED_EMOJIS:
-        emoji_prefix = EMBED_EMOJIS[embed_type][0] + " "
-
-    embed = discord.Embed(
-        title=emoji_prefix + title,
-        description=description,
-        color=EmbedManager.get_default_color(),
+    return EmbedManager.create_professional_embed(
+        title=title, description=description, embed_type=embed_type
     )
-    embed.set_footer(text=EmbedManager.FOOTER_STANDARD)
-    return embed
 
 
 class RoleButton(discord.ui.Button):
@@ -48,15 +39,43 @@ class RoleButton(discord.ui.Button):
 
         if role in member.roles:
             await member.remove_roles(role)
-            await interaction.response.send_message(
-                f"{EMBED_EMOJIS['error'][0]} {role.name} retiré.", ephemeral=True
+            embed = EmbedManager.create_success_embed(
+                title="Rôle retiré",
+                description=f"Le rôle **{role.name}** a été retiré avec succès !",
+                fields=[
+                    {
+                        "name": f"{EmbedManager.EMOJIS['user']} Utilisateur",
+                        "value": member.mention,
+                        "inline": True,
+                    },
+                    {
+                        "name": f"{EmbedManager.EMOJIS['crown']} Rôle",
+                        "value": role.name,
+                        "inline": True,
+                    },
+                ],
             )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
             logger.info(f"Rôle {role.name} retiré de {member.name}")
         else:
             await member.add_roles(role)
-            await interaction.response.send_message(
-                f"{EMBED_EMOJIS['success'][0]} {role.name} ajouté.", ephemeral=True
+            embed = EmbedManager.create_success_embed(
+                title="Rôle ajouté",
+                description=f"Le rôle **{role.name}** a été ajouté avec succès !",
+                fields=[
+                    {
+                        "name": f"{EmbedManager.EMOJIS['user']} Utilisateur",
+                        "value": member.mention,
+                        "inline": True,
+                    },
+                    {
+                        "name": f"{EmbedManager.EMOJIS['crown']} Rôle",
+                        "value": role.name,
+                        "inline": True,
+                    },
+                ],
             )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
             logger.info(f"Rôle {role.name} ajouté à {member.name}")
 
 

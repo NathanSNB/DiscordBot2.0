@@ -369,23 +369,34 @@ class TicketSystem(commands.Cog, name="tickets"):
         """Crée l'embed pour la création de tickets"""
         from utils.embed_manager import EmbedManager
 
-        embed = discord.Embed(
-            title=EmbedManager.HEADER_STANDARD,
+        fields = [
+            {
+                "name": f"{EmbedManager.EMOJIS['page']} Instructions",
+                "value": (
+                    "1. Sélectionnez la raison de votre ticket dans le menu\n"
+                    "2. Décrivez votre problème dans le salon créé\n"
+                    "3. Un membre du staff vous répondra dès que possible"
+                ),
+                "inline": False
+            },
+            {
+                "name": f"{EmbedManager.EMOJIS['info']} Information",
+                "value": (
+                    "Les tickets sont **privés** et seuls vous et le staff peuvent les voir.\n"
+                    "Merci de rester respectueux et patient."
+                ),
+                "inline": False
+            }
+        ]
+
+        embed = EmbedManager.create_professional_embed(
+            title="Système de Tickets",
             description=(
                 "Besoin d'aide ? Une question ? Un problème ?\n"
                 "Créez un ticket en sélectionnant une raison dans le menu ci-dessous."
             ),
-            color=self.color,
-        )
-
-        embed.add_field(
-            name="📜 Instructions",
-            value=(
-                "1. Sélectionnez la raison de votre ticket dans le menu\n"
-                "2. Décrivez votre problème dans le salon créé\n"
-                "3. Un membre du staff vous répondra dès que possible"
-            ),
-            inline=False,
+            embed_type="info",
+            fields=fields
         )
 
         embed.set_footer(text=EmbedManager.FOOTER_STANDARD)

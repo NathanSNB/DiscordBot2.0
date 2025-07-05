@@ -161,13 +161,13 @@ class StatsCommands(commands.Cog):
         except Exception as e:
             logger.error(f"❌ Erreur tracking jeu: {str(e)}")
 
-    def create_embed(self, title, description=None, color=None):
-        """Crée un embed standard"""
-        if color is None:
-            color = EmbedManager.get_default_color()
-        embed = discord.Embed(title=title, description=description, color=color)
-        embed.set_footer(text=EmbedManager.FOOTER_STANDARD)
-        return embed
+    def create_embed(self, title, description=None, embed_type="stats"):
+        """Crée un embed standard pour les statistiques"""
+        return EmbedManager.create_professional_embed(
+            title=title,
+            description=description,
+            embed_type=embed_type
+        )
 
     def format_time(self, minutes):
         """Formate le temps en format lisible"""

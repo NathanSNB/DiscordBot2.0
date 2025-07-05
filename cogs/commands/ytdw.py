@@ -180,44 +180,71 @@ class YouTubeDownloader(commands.Cog):
     def create_audio_embed(
         self, title: str, audio_url: str, thumbnail: str, author: discord.Member
     ) -> discord.Embed:
-        """Crée l'embed audio"""
-        embed = discord.Embed(
-            title=f"🎵 Format Audio - {title[:100]}{'...' if len(title) > 100 else ''}",
-            description=f"[Télécharger MP3]({audio_url})",  # URL complète dans la description
-            color=self.color,
-            timestamp=discord.utils.utcnow(),
+        """Crée l'embed audio professionnel"""
+        fields = [
+            {
+                "name": f"{EmbedManager.EMOJIS['download']} Format",
+                "value": "`MP3 - Meilleure qualité`",
+                "inline": True
+            },
+            {
+                "name": f"{EmbedManager.EMOJIS['user']} Demandé par",
+                "value": author.display_name,
+                "inline": True
+            },
+            {
+                "name": f"{EmbedManager.EMOJIS['time']} Extrait",
+                "value": f"<t:{int(discord.utils.utcnow().timestamp())}:R>",
+                "inline": True
+            },
+            {
+                "name": f"{EmbedManager.EMOJIS['link']} Téléchargement",
+                "value": f"[Cliquez ici pour télécharger]({audio_url})",
+                "inline": False
+            }
+        ]
+        
+        return EmbedManager.create_professional_embed(
+            title=f"Format Audio - {title[:100]}{'...' if len(title) > 100 else ''}",
+            description="Fichier audio MP3 prêt au téléchargement",
+            embed_type="download",
+            fields=fields,
+            thumbnail=thumbnail
         )
-        if thumbnail:
-            embed.set_thumbnail(url=thumbnail)
-
-        embed.add_field(
-            name="📥 Format", value="`MP3 - Meilleure qualité`", inline=True
-        )
-
-        embed.add_field(
-            name="ℹ️ Détails",
-            value=f"```yml\nExtrait le : {discord.utils.format_dt(discord.utils.utcnow(), 'R')}\n"
-            f"Par        : {author.display_name}```",
-            inline=False,
-        )
-        embed.set_footer(text=EmbedManager.FOOTER_STANDARD, icon_url=self.icon_url)
-        return embed
 
     def create_video_embed(
         self, title: str, video_url: str, thumbnail: str, author: discord.Member
     ) -> discord.Embed:
-        """Crée l'embed vidéo"""
-        embed = discord.Embed(
-            title=f"🎬 Format Vidéo - {title[:100]}{'...' if len(title) > 100 else ''}",
-            description=f"[Télécharger MP4]({video_url})",  # URL complète dans la description
-            color=self.color,
-            timestamp=discord.utils.utcnow(),
-        )
-        if thumbnail:
-            embed.set_thumbnail(url=thumbnail)
-
-        embed.add_field(
-            name="📥 Format", value="`MP4 - Résolution maximale`", inline=True
+        """Crée l'embed vidéo professionnel"""
+        fields = [
+            {
+                "name": f"{EmbedManager.EMOJIS['download']} Format",
+                "value": "`MP4 - Résolution maximale`",
+                "inline": True
+            },
+            {
+                "name": f"{EmbedManager.EMOJIS['user']} Demandé par",
+                "value": author.display_name,
+                "inline": True
+            },
+            {
+                "name": f"{EmbedManager.EMOJIS['time']} Extrait",
+                "value": f"<t:{int(discord.utils.utcnow().timestamp())}:R>",
+                "inline": True
+            },
+            {
+                "name": f"{EmbedManager.EMOJIS['link']} Téléchargement",
+                "value": f"[Cliquez ici pour télécharger]({video_url})",
+                "inline": False
+            }
+        ]
+        
+        return EmbedManager.create_professional_embed(
+            title=f"Format Vidéo - {title[:100]}{'...' if len(title) > 100 else ''}",
+            description="Fichier vidéo MP4 prêt au téléchargement",
+            embed_type="download",
+            fields=fields,
+            thumbnail=thumbnail
         )
 
         embed.add_field(

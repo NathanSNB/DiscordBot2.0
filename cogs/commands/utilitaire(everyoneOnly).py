@@ -26,13 +26,13 @@ class Commandes_Webs(commands.Cog):
         """Gestion globale des erreurs"""
         await ErrorHandler.handle_command_error(ctx, error)
 
-    def create_embed(self, title, description=None, color=None):
-        """Crée un embed standard"""
-        if color is None:
-            color = EmbedManager.get_default_color()
-        embed = discord.Embed(title=title, description=description, color=color)
-        embed.set_footer(text=EmbedManager.FOOTER_STANDARD)
-        return embed
+    def create_embed(self, title, description=None, embed_type="tools"):
+        """Crée un embed standard pour les utilitaires"""
+        return EmbedManager.create_professional_embed(
+            title=title,
+            description=description,
+            embed_type=embed_type
+        )
 
     def is_valid_url(self, url):
         """Vérifie si l'URL est valide (http:// ou https://)."""

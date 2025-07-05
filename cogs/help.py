@@ -132,32 +132,44 @@ class HelpView(View):
 
 
 def create_main_help_embed(bot):
-    embed = EmbedManager.create_embed(
-        title=EmbedManager.HEADER_STANDARD,
-        description=f"Bienvenue dans le système d'aide de MathysieBot™\n\n"
-        f"Utilisez le menu déroulant ci-dessous pour explorer les différentes catégories de commandes.\n\n"
-        f"**Préfixe des commandes:** `{bot.config.PREFIX}`",
-        timestamp=datetime.datetime.now(),
-        footer=EmbedManager.FOOTER_STANDARD,
-    )
-    embed.set_thumbnail(url=bot.user.display_avatar.url)
+    """Crée l'embed principal d'aide avec un style professionnel"""
+    fields = [
+        {
+            "name": f"{EmbedManager.EMOJIS['shield']} Administration",
+            "value": "• Commandes_Moderations\n• Commandes_Urgence\n• RulesCommands\n• WhitelistCog",
+            "inline": True,
+        },
+        {
+            "name": f"{EmbedManager.EMOJIS['tools']} Utilitaires",
+            "value": "• CommandesGénérales\n• Commandes_Webs\n• MCStatusCommands\n• YouTubeDownloader\n• ProfilePictureCog\n• WikiCommands",
+            "inline": True,
+        },
+        {
+            "name": f"{EmbedManager.EMOJIS['game']} Divertissement",
+            "value": "• Commandes_musicales",
+            "inline": True,
+        },
+        {
+            "name": f"{EmbedManager.EMOJIS['settings']} Systèmes",
+            "value": "• StatsCommands\n• BedtimeReminder\n• Commandes_Economie\n• RoleManager\n• private_voice",
+            "inline": True,
+        },
+        {
+            "name": f"{EmbedManager.EMOJIS['info']} Information",
+            "value": f"**Préfixe:** `{bot.config.PREFIX}`\n**Sélectionnez une catégorie** dans le menu déroulant pour plus de détails",
+            "inline": False,
+        },
+    ]
 
-    # Ajout des catégories principales avec séparateurs
-    embed.add_field(
-        name="━━━ 🛡️ Administration ━━━",
-        value="• Commandes_Moderations\n• Commandes_Urgence\n• RulesCommands\n• WhitelistCog",
-        inline=False,
+    embed = EmbedManager.create_professional_embed(
+        title="Menu d'aide principal",
+        description="Bienvenue dans le système d'aide de MathysieBot™\n\nUtilisez le menu déroulant ci-dessous pour explorer les différentes catégories de commandes.",
+        embed_type="help",
+        fields=fields,
+        thumbnail=bot.user.display_avatar.url,
     )
 
-    embed.add_field(
-        name="━━━ 🧰 Utilitaires ━━━",
-        value="• CommandesGénérales\n• Commandes_Webs\n• MCStatusCommands\n• YouTubeDownloader\n• ProfilePictureCog\n• WikiCommands",
-        inline=False,
-    )
-
-    embed.add_field(
-        name="━━━ 🎮 Divertissement ━━━", value="• Commandes_musicales", inline=False
-    )
+    return embed
 
     embed.add_field(
         name="━━━ ⚙️ Systèmes ━━━",
@@ -172,15 +184,8 @@ def create_main_help_embed(bot):
 
 
 def create_category_embed(bot, category, emoji, modules_list):
-    embed = discord.Embed(
-        title=f"{emoji} Commandes {category}",
-        description=f"Voici les modules disponibles dans la catégorie {category}.\n"
-        f"Utilisez `{bot.config.PREFIX}help [commande]` pour plus d'informations sur une commande spécifique.",
-        color=EmbedManager.get_default_color(),
-        timestamp=datetime.datetime.now(),
-    )
-
-    embed.add_field(name=f"━━━ Modules {emoji} ━━━", value="\u200b", inline=False)
+    """Crée un embed professionnel pour une catégorie de commandes"""
+    fields = []
 
     for module in modules_list:
         commands_list = []
@@ -196,14 +201,31 @@ def create_category_embed(bot, category, emoji, modules_list):
 
         # Si aucune commande n'est trouvée, afficher un message par défaut
         description = (
-            "\n".join(commands_list)
+            "\n".join(commands_list[:5])  # Limiter à 5 commandes par module
             if commands_list
             else "*Module sans commandes ou non chargé*"
         )
-        embed.add_field(name=f"📌 {module}", value=description, inline=False)
 
-    embed.set_thumbnail(url=bot.user.display_avatar.url)
-    embed.set_footer(text=EmbedManager.FOOTER_STANDARD)
+        if commands_list and len(commands_list) > 5:
+            description += f"\n*... et {len(commands_list) - 5} autres commandes*"
+
+        fields.append(
+            {
+                "name": f"{EmbedManager.EMOJIS['folder']} {module}",
+                "value": description,
+                "inline": False,
+            }
+        )
+
+    embed = EmbedManager.create_professional_embed(
+        title=f"Commandes {category}",
+        description=f"Voici les modules disponibles dans la catégorie {category}.\n"
+        f"Utilisez `{bot.config.PREFIX}help [commande]` pour plus d'informations sur une commande spécifique.",
+        embed_type="help",
+        fields=fields,
+        thumbnail=bot.user.display_avatar.url,
+    )
+
     return embed
 
 
@@ -219,30 +241,47 @@ class HelpCommands(commands.Cog):
             # Afficher l'aide pour une commande spécifique
             cmd = self.bot.get_command(command)
             if cmd:
-                embed = discord.Embed(title=f"📖 Aide pour {cmd.name}", color=0x7289DA)
-
                 usage = f"{self.bot.config.PREFIX}{cmd.name}"
                 if cmd.usage:
                     usage += f" {cmd.usage}"
 
-                embed.add_field(name="Utilisation", value=f"`{usage}`", inline=False)
-
-                if cmd.help:
-                    embed.add_field(name="Description", value=cmd.help, inline=False)
-                else:
-                    embed.add_field(
-                        name="Description",
-                        value="Aucune description disponible",
-                        inline=False,
-                    )
+                fields = [
+                    {
+                        "name": f"{EmbedManager.EMOJIS['page']} Utilisation",
+                        "value": f"`{usage}`",
+                        "inline": False,
+                    },
+                    {
+                        "name": f"{EmbedManager.EMOJIS['info']} Description",
+                        "value": cmd.help or "Aucune description disponible",
+                        "inline": False,
+                    },
+                ]
 
                 if cmd.aliases:
                     aliases = ", ".join([f"`{alias}`" for alias in cmd.aliases])
-                    embed.add_field(name="Alias", value=aliases, inline=False)
+                    fields.append(
+                        {
+                            "name": f"{EmbedManager.EMOJIS['bookmark']} Alias",
+                            "value": aliases,
+                            "inline": False,
+                        }
+                    )
+
+                embed = EmbedManager.create_command_embed(
+                    command_name=cmd.name,
+                    description=cmd.help or "Aucune description disponible",
+                    usage=usage,
+                    examples=[f"{usage}"] if cmd.usage else None,
+                )
 
                 await ctx.send(embed=embed)
             else:
-                await ctx.send(f"❌ La commande `{command}` n'existe pas.")
+                error_embed = EmbedManager.create_error_embed(
+                    title="Commande introuvable",
+                    description=f"La commande `{command}` n'existe pas.",
+                )
+                await ctx.send(embed=error_embed)
         else:
             # Afficher le menu d'aide principal
             embed = create_main_help_embed(self.bot)

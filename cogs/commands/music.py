@@ -27,18 +27,20 @@ class Commandes_musicales(commands.Cog):
                 ):  # Vérifie si seul le bot est présent
                     await voice_client.disconnect()
 
-    def create_embed(self, title, description=None, color=None):
-        """Crée un embed standard pour les réponses."""
-        if color is None:
-            color = EmbedManager.get_default_color()
-        embed = discord.Embed(title=title, description=description, color=color)
-        embed.set_footer(text=EmbedManager.FOOTER_STANDARD)
-        return embed
+    def create_embed(self, title, description=None, embed_type="music"):
+        """Crée un embed standard pour les réponses musicales."""
+        return EmbedManager.create_professional_embed(
+            title=title, description=description, embed_type=embed_type
+        )
 
-    async def _send_response(self, ctx, message, title="Réponse Bot Musique"):
-        """Envoie une réponse avec un embed."""
+    async def _send_response(
+        self, ctx, message, title="Système Musical", embed_type="music"
+    ):
+        """Envoie une réponse avec un embed professionnel."""
         try:
-            embed = self.create_embed(title=title, description=message)
+            embed = EmbedManager.create_professional_embed(
+                title=title, description=message, embed_type=embed_type
+            )
             if isinstance(ctx, discord.Interaction):
                 return await ctx.followup.send(embed=embed)
             else:

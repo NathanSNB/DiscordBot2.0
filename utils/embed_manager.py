@@ -1,12 +1,13 @@
 import discord
 import json
 import os
-from typing import Optional
+from typing import Optional, List, Dict, Any
 import logging
+from datetime import datetime
 
 
 class EmbedManager:
-    """Gestionnaire d'embeds centralisé pour maintenir une apparence cohérente"""
+    """Gestionnaire d'embeds centralisé pour maintenir une apparence cohérente et professionnelle"""
 
     _default_color = None  # Cache de la couleur par défaut
 
@@ -23,6 +24,78 @@ class EmbedManager:
     FOOTER_WELCOME = (
         "Une fois ces étapes terminées, tu auras accès à l'ensemble du serveur !"
     )
+
+    # Emojis professionnels pour différents types d'embed
+    EMOJIS = {
+        "success": "✅",
+        "error": "❌",
+        "warning": "⚠️",
+        "info": "ℹ️",
+        "music": "🎵",
+        "stats": "📊",
+        "tools": "🔧",
+        "settings": "⚙️",
+        "help": "❓",
+        "user": "👤",
+        "server": "🏠",
+        "bot": "🤖",
+        "time": "⏰",
+        "star": "⭐",
+        "fire": "🔥",
+        "trophy": "🏆",
+        "game": "🎮",
+        "link": "🔗",
+        "download": "📥",
+        "upload": "📤",
+        "search": "🔍",
+        "lock": "🔒",
+        "unlock": "🔓",
+        "shield": "🛡️",
+        "crown": "👑",
+        "diamond": "💎",
+        "rocket": "🚀",
+        "heart": "❤️",
+        "thumbsup": "👍",
+        "thumbsdown": "👎",
+        "wave": "👋",
+        "party": "🎉",
+        "bell": "🔔",
+        "mail": "📧",
+        "folder": "📁",
+        "page": "📄",
+        "bookmark": "🔖",
+        "calendar": "📅",
+        "clock": "🕐",
+        "chart": "📈",
+        "graph": "📊",
+        "target": "🎯",
+        "medal": "🏅",
+        "gem": "💠",
+        "flash": "⚡",
+        "bulb": "💡",
+    }
+
+    # Couleurs professionnelles
+    COLORS = {
+        "primary": discord.Color(0x2BA3B3),  # Bleu principal
+        "success": discord.Color(0x00D166),  # Vert succès
+        "error": discord.Color(0xFF3838),  # Rouge erreur
+        "warning": discord.Color(0xFFB800),  # Orange avertissement
+        "info": discord.Color(0x3498DB),  # Bleu information
+        "secondary": discord.Color(0x6C757D),  # Gris secondaire
+        "dark": discord.Color(0x2C2F33),  # Sombre
+        "light": discord.Color(0xF8F9FA),  # Clair
+        "purple": discord.Color(0x9B59B6),  # Violet
+        "pink": discord.Color(0xE91E63),  # Rose
+        "orange": discord.Color(0xFF9500),  # Orange
+        "yellow": discord.Color(0xF1C40F),  # Jaune
+        "green": discord.Color(0x2ECC71),  # Vert
+        "red": discord.Color(0xE74C3C),  # Rouge
+        "blue": discord.Color(0x3498DB),  # Bleu
+        "indigo": discord.Color(0x6610F2),  # Indigo
+        "teal": discord.Color(0x20C997),  # Turquoise
+        "cyan": discord.Color(0x17A2B8),  # Cyan
+    }
 
     @classmethod
     def get_default_color(cls) -> discord.Color:
@@ -132,6 +205,229 @@ class EmbedManager:
             embed.set_footer(text=footer, icon_url=footer_icon)
 
         return embed
+
+    @classmethod
+    def create_professional_embed(
+        cls,
+        title: str,
+        description: Optional[str] = None,
+        embed_type: str = "info",
+        fields: Optional[List[Dict[str, Any]]] = None,
+        thumbnail: Optional[str] = None,
+        image: Optional[str] = None,
+        author: Optional[Dict[str, str]] = None,
+        timestamp: bool = True,
+        footer_override: Optional[str] = None,
+        color_override: Optional[discord.Color] = None,
+        **kwargs,
+    ) -> discord.Embed:
+        """
+        Crée un embed professionnel avec une structure standardisée
+
+        Args:
+            title: Titre de l'embed
+            description: Description de l'embed
+            embed_type: Type d'embed (success, error, warning, info, etc.)
+            fields: Liste des champs à ajouter
+            thumbnail: URL de la miniature
+            image: URL de l'image
+            author: Dictionnaire avec name, url, icon_url
+            timestamp: Ajouter un timestamp
+            footer_override: Footer personnalisé (sinon utilise le standard)
+            color_override: Couleur personnalisée
+            **kwargs: Arguments supplémentaires
+
+        Returns:
+            discord.Embed: L'embed créé
+        """
+        # Déterminer la couleur
+        if color_override:
+            color = color_override
+        elif embed_type in cls.COLORS:
+            color = cls.COLORS[embed_type]
+        else:
+            color = cls.get_default_color()
+
+        # Ajouter emoji au titre si applicable
+        emoji = cls.EMOJIS.get(embed_type, "")
+        if emoji and not title.startswith(emoji):
+            title = f"{emoji} {title}"
+
+        # Créer l'embed
+        embed = discord.Embed(
+            title=title, description=description, color=color, **kwargs
+        )
+
+        # Ajouter l'auteur si fourni
+        if author:
+            embed.set_author(
+                name=author.get("name", ""),
+                url=author.get("url", ""),
+                icon_url=author.get("icon_url", ""),
+            )
+
+        # Ajouter les champs
+        if fields:
+            for field in fields:
+                embed.add_field(
+                    name=field.get("name", ""),
+                    value=field.get("value", ""),
+                    inline=field.get("inline", True),
+                )
+
+        # Ajouter thumbnail et image
+        if thumbnail:
+            embed.set_thumbnail(url=thumbnail)
+        if image:
+            embed.set_image(url=image)
+
+        # Ajouter timestamp
+        if timestamp:
+            embed.timestamp = datetime.utcnow()
+
+        # Ajouter footer
+        footer_text = footer_override or cls.FOOTER_STANDARD
+        embed.set_footer(text=footer_text)
+
+        return embed
+
+    @classmethod
+    def create_success_embed(
+        cls, title: str, description: Optional[str] = None, **kwargs
+    ) -> discord.Embed:
+        """Crée un embed de succès standardisé"""
+        return cls.create_professional_embed(
+            title=title, description=description, embed_type="success", **kwargs
+        )
+
+    @classmethod
+    def create_error_embed(
+        cls, title: str, description: Optional[str] = None, **kwargs
+    ) -> discord.Embed:
+        """Crée un embed d'erreur standardisé"""
+        return cls.create_professional_embed(
+            title=title, description=description, embed_type="error", **kwargs
+        )
+
+    @classmethod
+    def create_warning_embed(
+        cls, title: str, description: Optional[str] = None, **kwargs
+    ) -> discord.Embed:
+        """Crée un embed d'avertissement standardisé"""
+        return cls.create_professional_embed(
+            title=title, description=description, embed_type="warning", **kwargs
+        )
+
+    @classmethod
+    def create_info_embed(
+        cls, title: str, description: Optional[str] = None, **kwargs
+    ) -> discord.Embed:
+        """Crée un embed d'information standardisé"""
+        return cls.create_professional_embed(
+            title=title, description=description, embed_type="info", **kwargs
+        )
+
+    @classmethod
+    def create_command_embed(
+        cls,
+        command_name: str,
+        description: str,
+        usage: Optional[str] = None,
+        examples: Optional[List[str]] = None,
+        **kwargs,
+    ) -> discord.Embed:
+        """Crée un embed standardisé pour l'aide des commandes"""
+        fields = []
+
+        if usage:
+            fields.append(
+                {
+                    "name": f"{cls.EMOJIS['help']} Utilisation",
+                    "value": f"`{usage}`",
+                    "inline": False,
+                }
+            )
+
+        if examples:
+            examples_text = "\n".join([f"`{ex}`" for ex in examples])
+            fields.append(
+                {
+                    "name": f"{cls.EMOJIS['star']} Exemples",
+                    "value": examples_text,
+                    "inline": False,
+                }
+            )
+
+        return cls.create_professional_embed(
+            title=f"Commande: {command_name}",
+            description=description,
+            embed_type="help",
+            fields=fields,
+            **kwargs,
+        )
+
+    @classmethod
+    def create_stats_embed(
+        cls, title: str, stats_data: Dict[str, Any], **kwargs
+    ) -> discord.Embed:
+        """Crée un embed standardisé pour les statistiques"""
+        fields = []
+
+        for key, value in stats_data.items():
+            # Formatage intelligent des valeurs
+            if isinstance(value, (int, float)):
+                if value >= 1000000:
+                    formatted_value = f"{value/1000000:.1f}M"
+                elif value >= 1000:
+                    formatted_value = f"{value/1000:.1f}K"
+                else:
+                    formatted_value = str(value)
+            else:
+                formatted_value = str(value)
+
+            fields.append({"name": key, "value": formatted_value, "inline": True})
+
+        return cls.create_professional_embed(
+            title=title, embed_type="stats", fields=fields, **kwargs
+        )
+
+    @classmethod
+    def create_user_embed(
+        cls,
+        user: discord.Member,
+        additional_info: Optional[Dict[str, Any]] = None,
+        **kwargs,
+    ) -> discord.Embed:
+        """Crée un embed standardisé pour les informations utilisateur"""
+        fields = [
+            {
+                "name": f"{cls.EMOJIS['user']} Nom d'utilisateur",
+                "value": f"{user.mention}",
+                "inline": True,
+            },
+            {
+                "name": f"{cls.EMOJIS['calendar']} Rejoint le serveur",
+                "value": f"<t:{int(user.joined_at.timestamp())}:R>",
+                "inline": True,
+            },
+            {
+                "name": f"{cls.EMOJIS['clock']} Compte créé",
+                "value": f"<t:{int(user.created_at.timestamp())}:R>",
+                "inline": True,
+            },
+        ]
+
+        if additional_info:
+            for key, value in additional_info.items():
+                fields.append({"name": key, "value": str(value), "inline": True})
+
+        return cls.create_professional_embed(
+            title=f"Profil de {user.display_name}",
+            embed_type="user",
+            fields=fields,
+            thumbnail=user.display_avatar.url,
+            **kwargs,
+        )
 
     @staticmethod
     def create_welcome_dm(
