@@ -1,4 +1,5 @@
 import discord
+from discord import app_commands
 from discord.ext import commands
 import requests
 import qrcode
@@ -85,6 +86,46 @@ class Commandes_Webs(commands.Cog):
         except Exception as e:
             await ctx.send(f"❌ Une erreur est survenue : {str(e)}")
 
+    @app_commands.command(name="shorten", description="Raccourcit une URL longue")
+    @app_commands.describe(url="URL à raccourcir (doit commencer par http:// ou https://)")
+    async def shorten_slash(self, interaction: discord.Interaction, url: str):
+        """Version slash command pour raccourcir une URL"""
+        if not self.BITLY_API_KEY:
+            await interaction.response.send_message("Erreur : la clé API Bitly n'est pas configurée.", ephemeral=True)
+            return
+
+        if not self.is_valid_url(url):
+            await interaction.response.send_message(
+                "❌ URL invalide. L'URL doit commencer par http:// ou https://", ephemeral=True
+            )
+            return
+
+        try:
+            headers = {
+                "Authorization": f"Bearer {self.BITLY_API_KEY}",
+                "Content-Type": "application/json",
+            }
+            response = requests.post(
+                "https://api-ssl.bitly.com/v4/shorten",
+                headers=headers,
+                json={"long_url": url},
+            )
+
+            if response.status_code == 200:
+                short_url = response.json().get("link")
+                embed = self.create_embed(
+                    "🔗 URL Raccourcie",
+                    f"URL d'origine : {url}\nURL courte : {short_url}",
+                )
+                await interaction.response.send_message(embed=embed)
+            else:
+                error_msg = response.json().get("message", "Erreur inconnue")
+                await interaction.response.send_message(
+                    f"❌ Erreur lors du raccourcissement de l'URL : {error_msg}", ephemeral=True
+                )
+        except Exception as e:
+            await interaction.response.send_message(f"❌ Une erreur est survenue : {str(e)}", ephemeral=True)
+
     @commands.command(
         name="qrcode",
         help="Génère un QR Code",
@@ -119,6 +160,38 @@ class Commandes_Webs(commands.Cog):
             )
         except Exception as e:
             await ctx.send(f"❌ Une erreur est survenue : {str(e)}")
+
+    @app_commands.command(name="qrcode", description="Génère un QR Code à partir d'une URL")
+    @app_commands.describe(url="URL à encoder en QR Code (doit commencer par http:// ou https://)")
+    async def qrcode_slash(self, interaction: discord.Interaction, url: str):
+        """Version slash command pour générer un QR Code"""
+        if not self.is_valid_url(url):
+            await interaction.response.send_message(
+                "❌ URL invalide. L'URL doit commencer par http:// ou https://", ephemeral=True
+            )
+            return
+
+        try:
+            qr = qrcode.QRCode(
+                version=1,
+                error_correction=qrcode.constants.ERROR_CORRECT_L,
+                box_size=10,
+                border=4,
+            )
+            qr.add_data(url)
+            qr.make(fit=True)
+
+            img = qr.make_image(fill_color="black", back_color="white")
+            buffer = BytesIO()
+            img.save(buffer, format="PNG")
+            buffer.seek(0)
+
+            embed = self.create_embed("📱 QR Code généré", f"URL encodée : {url}")
+            await interaction.response.send_message(
+                embed=embed, file=discord.File(buffer, filename="qrcode.png")
+            )
+        except Exception as e:
+            await interaction.response.send_message(f"❌ Une erreur est survenue : {str(e)}", ephemeral=True)
 
     @commands.command(
         name="scan",
@@ -196,6 +269,78 @@ class Commandes_Webs(commands.Cog):
                         await ctx.send(embed=embed)
         except Exception as e:
             await status_msg.edit(content=f"❌ Une erreur est survenue : {str(e)}")
+
+    @app_commands.command(name="scan", description="Analyse une URL avec VirusTotal")
+    @app_commands.describe(url="URL à analyser (doit commencer par http:// ou https://)")
+    async def scan_slash(self, interaction: discord.Interaction, url: str):
+        """Version slash command pour analyser une URL"""
+        if not self.VIRUSTOTAL_API_KEY:
+            await interaction.response.send_message("Erreur : la clé API VirusTotal n'est pas configurée.", ephemeral=True)
+            return
+
+        if not self.is_valid_url(url):
+            await interaction.response.send_message(
+                "❌ URL invalide. L'URL doit commencer par http:// ou https://", ephemeral=True
+            )
+            return
+
+        await interaction.response.defer()
+        try:
+            headers = {"x-apikey": self.VIRUSTOTAL_API_KEY}
+            async with aiohttp.ClientSession() as session:
+                # Soumet l'URL pour analyse
+                async with session.post(
+                    "https://www.virustotal.com/api/v3/urls",
+                    headers=headers,
+                    data={"url": url},
+                ) as response:
+                    if response.status != 200:
+                        await interaction.followup.send("❌ Erreur lors de l'analyse", ephemeral=True)
+                        return
+
+                    result = await response.json()
+                    analysis_id = result["data"]["id"]
+
+                    # Récupère les résultats
+                    async with session.get(
+                        f"https://www.virustotal.com/api/v3/analyses/{analysis_id}",
+                        headers=headers,
+                    ) as get_response:
+                        if get_response.status != 200:
+                            await interaction.followup.send(
+                                "❌ Erreur lors de la récupération des résultats", ephemeral=True
+                            )
+                            return
+
+                        analysis_result = await get_response.json()
+                        stats = analysis_result["data"]["attributes"].get("stats", {})
+                        malicious = stats.get("malicious", 0)
+                        suspicious = stats.get("suspicious", 0)
+                        total = sum(stats.values())
+
+                        if malicious > 0 or suspicious > 0:
+                            threat_level = (
+                                "🔴 Élevé"
+                                if malicious > 5
+                                else "🟡 Modéré" if malicious > 0 else "🟠 Faible"
+                            )
+                            embed = self.create_embed(
+                                "⚠️ URL Potentiellement Dangereuse",
+                                f"**Niveau de menace :** {threat_level}\n"
+                                f"**Détections :** {malicious} malveillantes, {suspicious} suspectes\n"
+                                f"**Total analyseurs :** {total}\n"
+                                f"**URL analysée :** {url}",
+                            )
+                        else:
+                            embed = self.create_embed(
+                                "✅ URL Sûre",
+                                f"Aucune détection sur {total} analyseurs.\n"
+                                f"URL analysée : {url}",
+                            )
+
+                        await interaction.followup.send(embed=embed)
+        except Exception as e:
+            await interaction.followup.send(f"❌ Une erreur est survenue : {str(e)}", ephemeral=True)
 
 
 async def setup(bot):
